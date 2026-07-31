@@ -1,0 +1,50 @@
+/* Wave pattern (diagonal bands, logo DNA), vignette frame and film grain.
+   Both wave layers sit behind the cards (#viewport is z-index:1). The
+   pattern is white-on-black; mix-blend-mode:screen makes the black
+   invisible, so only the white bands show through the gaps between cards. */
+#waves, #waves-glow {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url("../assets/wave-pattern.png");
+  background-repeat: repeat;
+  background-size: 300px 300px;
+  mix-blend-mode: screen;
+}
+/* Base layer: very faint, constant. */
+#waves { opacity: 0.025; }
+/* Glow layer: brighter, but only visible around the two glow centers
+   (cursor + focused card), controlled by two radial masks that
+   js/forceField.js updates every frame via CSS custom properties. */
+#waves-glow {
+  opacity: 0.4;
+  -webkit-mask:
+    radial-gradient(circle 95px at var(--glow-x) var(--glow-y), rgba(0,0,0,calc(var(--glow-a)*0.4)) 0%, transparent 62%),
+    radial-gradient(circle 150px at var(--card-x) var(--card-y), rgba(0,0,0,calc(var(--card-a)*0.38)) 0%, transparent 66%);
+  -webkit-mask-composite: source-over;
+  mask:
+    radial-gradient(circle 95px at var(--glow-x) var(--glow-y), rgba(0,0,0,calc(var(--glow-a)*0.4)) 0%, transparent 62%),
+    radial-gradient(circle 150px at var(--card-x) var(--card-y), rgba(0,0,0,calc(var(--card-a)*0.38)) 0%, transparent 66%);
+  mask-composite: add;
+}
+
+/* Vignette: darkens edges, blur-frame softens the outermost ring. */
+#vignette {
+  position: fixed; inset: 0; z-index: 50; pointer-events: none;
+  background: radial-gradient(ellipse 80% 78% at 50% 50%,
+    transparent 40%,
+    rgba(12,13,15,0.35) 62%,
+    rgba(12,13,15,0.82) 82%,
+    rgba(12,13,15,0.98) 100%);
+}
+#blur-frame {
+  position: fixed; inset: 0; z-index: 49; pointer-events: none;
+  backdrop-filter: blur(7px);
+  -webkit-mask: radial-gradient(ellipse 78% 76% at 50% 50%,
+    transparent 46%, rgba(0,0,0,0.4) 66%, #000 84%);
+  mask: radial-gradient(ellipse 78% 76% at 50% 50%,
+    transparent 46%, rgba(0,0,0,0.4) 66%, #000 84%);
+}
+#grain {
+  position: fixed; inset: 0; z-index: 51; pointer-events: none;
+  mix-blend-mode: overlay; opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+}

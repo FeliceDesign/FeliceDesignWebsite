@@ -1,0 +1,61 @@
+/* Fixed UI that sits above the vignette: logo, tabs, hint, contact link. */
+.fixed-ui { position: fixed; z-index: 60; }
+
+.header-row {
+  top: clamp(20px,3.5vw,40px); left: clamp(22px,5vw,56px); right: clamp(22px,5vw,56px);
+  display: flex; align-items: center; gap: clamp(16px,3vw,36px);
+  pointer-events: auto;
+}
+.brand { display: flex; align-items: center; flex: none; line-height: 0; }
+.brand img { height: clamp(30px,4.4vw,42px); width: auto; display: block; }
+
+.tabs {
+  display: flex; gap: clamp(14px,2.4vw,32px); align-items: center;
+  pointer-events: auto; flex-wrap: nowrap;
+}
+.tab {
+  background: none; border: none; color: var(--ink); white-space: nowrap;
+  font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; letter-spacing: 0.08em;
+  cursor: pointer; padding: 4px 0; position: relative; opacity: 0.5;
+  transition: opacity .3s var(--ease);
+}
+.tab::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px;
+  background: var(--ink); transform: scaleX(0); transform-origin: center;
+  transition: transform .3s var(--ease);
+}
+.tab:hover { opacity: 0.85; }
+.tab.active { opacity: 1; }
+.tab.active::after { transform: scaleX(1); }
+
+.hint {
+  bottom: clamp(24px,4vw,42px); left: 50%; transform: translateX(-50%);
+  font-size: 0.64rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint);
+  transition: opacity .6s var(--ease);
+}
+.hint.gone { opacity: 0; }
+
+.contact {
+  bottom: clamp(24px,4vw,42px); right: clamp(26px,5vw,56px);
+  font-size: 0.7rem; letter-spacing: 0.12em; color: var(--ink-dim);
+  border-bottom: 1px solid var(--ink-faint); padding-bottom: 2px; pointer-events: auto; cursor: pointer;
+  transition: color .3s, border-color .3s;
+}
+.contact:hover { color: var(--ink); border-color: var(--amber); }
+
+/* Mobile: logo + tabs stay in one row, just more compact. */
+@media (max-width: 600px) {
+  .header-row { top: 14px; left: 14px; right: 14px; gap: 12px; }
+  .brand img { height: 26px; }
+  .tabs { gap: 11px; }
+  .tab { font-size: 0.66rem; letter-spacing: 0.04em; }
+  .contact { bottom: 16px; right: 18px; }
+  .hint { bottom: 16px; font-size: 0.58rem; left: 18px; transform: none; text-align: left; }
+}
+/* Very narrow: let tabs shrink a little rather than overflow. */
+@media (max-width: 380px) {
+  .header-row { gap: 8px; }
+  .brand img { height: 23px; }
+  .tabs { gap: 9px; }
+  .tab { font-size: 0.6rem; }
+}

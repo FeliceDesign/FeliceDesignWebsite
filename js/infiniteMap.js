@@ -1,0 +1,171 @@
+// Builds the endless, draggable map of work cards.
+//
+// One "tile" is a COLS x ROWS grid holding one card per work. The tile is
+// cloned REPEAT x REPEAT so cards always surround the visible viewport.
+// Dragging moves #world via a CSS transform; when a tile drifts fully out
+// of view, its world position is wrapped modulo the tile size, so the map
+// feels infinite without ever growing the DOM.
+import {
+  CARD_W, CARD_H, GAP, COLS, ROWS, CELL_W, CELL_H, TILE_W, TILE_H, REPEAT, PARALLAX, isTouch,
+} from './constants.js';
+import { TAGLABEL } from './works.js';
+
+function cardMarkup(work) {
+  const media = work.media.type === 'video'
+    ? `<video class="card-video" autoplay loop muted playsinline src="${work.media.src}"></video>`
+    : `<div class="card-img" style="background-image:url('${work.media.src}')"></div>`;
+  return `
+    ${media}
+    <div class="card-title">
+      <span class="t">${work.title}</span>
+      <span class="s ${work.tag}">${TAGLABEL[work.tag]}</span>
+    </div>`;
+}
+
+export class InfiniteMap {
+  constructor({ world, viewport, works, parallaxEls }) {
+    this.world = world;
+    this.viewport = viewport;
+    this.works = works;
+    this.parallaxEls = parallaxEls;
+    this.cards = [];
+
+    // Called by main.js to react to drag/inertia (used for the touch force
+    // field, which has to follow cards through the fixed screen center).
+    this.onDragStart = null;
+    this.onDragMove = null;
+    this.onFrame = null;
+    this.onCardOpen = null;
+    this.onHintDismiss = null;
+
+    // World position starts centered in the middle tile.
+    this.posX = -TILE_W;
+    this.posY = -TILE_H;
+    this.velX = 0; this.velY = 0;
+    this.dragging = false; this.moved = false;
+    this.lastX = 0; this.lastY = 0;
+    // Raw accumulator WITHOUT wrapping, for continuous parallax
+    // (posX/posY jump periodically, this doesn't).
+    this.accX = 0; this.accY = 0;
+
+    this._buildCards();
+    this._bindPointerEvents();
+    this._applyTransform();
+    this._runInertia();
+  }
+
+  isDragging() {
+    return this.dragging;
+  }
+
+  _buildCards() {
+    for (let ty = 0; ty < REPEAT; ty++) {
+      for (let tx = 0; tx < REPEAT; tx++) {
+        for (let i = 0; i < this.works.length; i++) {
+          const work = this.works[i];
+          const col = i % COLS;
+          const row = Math.floor(i / COLS);
+          const x = tx * TILE_W + col * CELL_W;
+          const y = ty * TILE_H + row * CELL_H;
+
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.style.width = `${CARD_W}px`;
+          card.style.height = `${CARD_H}px`;
+          card.style.left = `${x}px`;
+          card.style.top = `${y}px`;
+          card.dataset.idx = i;
+          card.dataset.tag = work.tag;
+          card.innerHTML = cardMarkup(work);
+
+          this.world.appendChild(card);
+          this.cards.push(card);
+        }
+      }
+    }
+  }
+
+  _applyTransform() {
+    // Wrap via modulo: no matter how much momentum builds up, the position
+    // always stays within one tile's range, so it can never outrun the
+    // REPEAT x REPEAT buffer and show empty space.
+    this.posX = ((this.posX % TILE_W) + TILE_W) % TILE_W - TILE_W;
+    this.posY = ((this.posY % TILE_H) + TILE_H) % TILE_H - TILE_H;
+    this.world.style.transform = `translate3d(${this.posX}px, ${this.posY}px, 0)`;
+
+    // Parallax: shift the background pattern by a fraction of the drag,
+    // reusing its own tiling so there are never visible seams. Uses the
+    // unwrapped accumulator so the background never jumps.
+    const bx = (this.accX * PARALLAX).toFixed(1);
+    const by = (this.accY * PARALLAX).toFixed(1);
+    for (const el of this.parallaxEls) {
+      el.style.backgroundPosition = `${bx}px ${by}px`;
+    }
+  }
+
+  _runInertia() {
+    const tick = () => {
+      if (!this.dragging) {
+        this.posX += this.velX; this.posY += this.velY;
+        this.accX += this.velX; this.accY += this.velY;
+        this.velX *= 0.92; this.velY *= 0.92; // friction -> smooth glide-out
+        if (Math.abs(this.velX) < 0.05) this.velX = 0;
+        if (Math.abs(this.velY) < 0.05) this.velY = 0;
+        if (this.velX || this.velY) {
+          this._applyTransform();
+          if (isTouch && this.onFrame) this.onFrame();
+        }
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  _point(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  _bindPointerEvents() {
+    const down = (e) => {
+      this.dragging = true; this.moved = false;
+      document.body.classList.add('dragging');
+      if (!isTouch && this.onDragStart) this.onDragStart(); // desktop: drop the zoom while dragging
+      const p = this._point(e);
+      this.lastX = p.x; this.lastY = p.y;
+      this.velX = this.velY = 0;
+    };
+    const move = (e) => {
+      if (!this.dragging) return;
+      const p = this._point(e);
+      const dx = p.x - this.lastX;
+      const dy = p.y - this.lastY;
+      if (Math.abs(dx) + Math.abs(dy) > 3) this.moved = true;
+      this.posX += dx; this.posY += dy;
+      this.accX += dx; this.accY += dy;
+      this.velX = dx; this.velY = dy; // last movement = starting momentum
+      this.lastX = p.x; this.lastY = p.y;
+      this._applyTransform();
+      if (isTouch && this.onDragMove) this.onDragMove(); // field follows cards sliding past
+      if (this.onHintDismiss) this.onHintDismiss();
+    };
+    const up = () => {
+      this.dragging = false;
+      document.body.classList.remove('dragging');
+    };
+
+    this.viewport.addEventListener('mousedown', down);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    this.viewport.addEventListener('touchstart', down, { passive: true });
+    window.addEventListener('touchmove', move, { passive: true });
+    window.addEventListener('touchend', up);
+
+    // A click only opens a card if the map wasn't dragged in between.
+    this.world.addEventListener('click', (e) => {
+      if (this.moved) return;
+      const card = e.target.closest('.card');
+      if (card && this.onCardOpen) this.onCardOpen(card, this.works[+card.dataset.idx]);
+    });
+  }
+}

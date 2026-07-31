@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>felice design</title>
+<link rel="stylesheet" href="css/variables.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/background.css">
+<link rel="stylesheet" href="css/header.css">
+<link rel="stylesheet" href="css/cards.css">
+<link rel="stylesheet" href="css/detail.css">
+</head>
+<body>
+
+<div id="viewport">
+  <div id="world"></div>
+</div>
+<div id="waves"></div>
+<div id="waves-glow"></div>
+
+<div id="blur-frame"></div>
+<div id="vignette"></div>
+<div id="grain"></div>
+
+<div class="fixed-ui header-row">
+  <a class="brand" href="#" aria-label="felice design">
+    <img src="assets/logo.svg" alt="felice design">
+  </a>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-f="all">Alles</button>
+    <button class="tab" data-f="foto">Fotografie</button>
+    <button class="tab" data-f="d3">3D</button>
+  </nav>
+</div>
+<div class="fixed-ui hint" id="hint">Ziehen zum Erkunden</div>
+<div class="fixed-ui contact">Kontakt</div>
+
+<div id="overlay"></div>
+<div id="flyer"></div>
+<div class="detail-text" id="detailText">
+  <div class="eyebrow" id="dEyebrow"></div>
+  <h2 id="dTitle"></h2>
+  <p id="dDesc"></p>
+</div>
+<button id="closeBtn" aria-label="Schließen">✕</button>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
