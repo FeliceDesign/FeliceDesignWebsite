@@ -24,19 +24,25 @@ export const REPEAT = 3;
 // static, 1 = moves exactly with the cards).
 export const PARALLAX = 0.18;
 
+// The map counts as "still" (and the focus field starts expanding) once its
+// glide speed drops below this many px/frame. Waiting for a dead stop made
+// the expansion feel delayed after a fling, since the 0.92 friction tail is
+// long; this lets it react as soon as the map is barely creeping.
+export const SETTLE_SPEED = 3;
+
 // The base card box aspect ratio (all grid cards share it). Hovering a card
 // morphs its box towards the image's own aspect ratio, revealing the parts
 // that are cropped away in the grid.
 export const BASE_AR = CARD_W / CARD_H;
 
-// Focused card: how much bigger it gets. The expanded card keeps roughly
-// this multiple of the base card's *area* (so a tall image and a wide image
-// end up feeling like the same amount of "zoom", just in different shapes),
-// then clamped so it never grows more than these multiples of the base card
-// (which keeps the ripple of pushed neighbours to a handful of rings).
-export const FOCUS_AREA = isTouch ? 1.75 : 2.0;
-export const FOCUS_MAX_W = 1.9; // × CARD_W
-export const FOCUS_MAX_H = 1.7; // × CARD_H
+// Focused card growth. The expanded box is the smallest box of the image's
+// own aspect ratio that still *contains* the base card, times FOCUS_GROW —
+// so a focused card only ever grows outward (revealing the cropped parts),
+// never shrinks a side. Then clamped to the viewport and to these multiples
+// of the base card so the ripple of pushed neighbours stays a few rings.
+export const FOCUS_GROW = 1.12;
+export const FOCUS_MAX_W = 2.3; // × CARD_W
+export const FOCUS_MAX_H = 2.5; // × CARD_H
 export const FOCUS_LIFT = 10;   // px the focused card floats up
 
 // Minimum breathing space that must always remain between tiles: FOCUS_GAP

@@ -6,7 +6,7 @@
 // Dragging moves #world via a CSS transform; when a tile drifts fully out
 // of view, its world position is wrapped modulo the tile size, so the map
 // feels infinite without ever growing the DOM.
-import { CARD_W, CARD_H, GAP, REPEAT, PARALLAX, isTouch } from './constants.js';
+import { CARD_W, CARD_H, GAP, REPEAT, PARALLAX, SETTLE_SPEED, isTouch } from './constants.js';
 import { TAGLABEL } from './works.js';
 import { gridSize } from './grid.js';
 
@@ -56,9 +56,11 @@ export class InfiniteMap {
     return this.dragging;
   }
 
-  // True while the map is being dragged or still gliding from inertia.
+  // True while the map is being dragged or gliding faster than a slow creep.
+  // The focus field treats anything slower as "settled" so the expansion
+  // kicks in promptly instead of waiting out the long inertia tail.
   isMoving() {
-    return this.dragging || this.velX !== 0 || this.velY !== 0;
+    return this.dragging || Math.hypot(this.velX, this.velY) > SETTLE_SPEED;
   }
 
   // Rebuilds the map for a new set of works (e.g. switching category tabs),

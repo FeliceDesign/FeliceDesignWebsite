@@ -17,7 +17,7 @@
 // can't flicker as tiles move.
 import {
   CARD_W, CARD_H, GAP, CELL_W, CELL_H, BASE_AR,
-  FOCUS_AREA, FOCUS_MAX_W, FOCUS_MAX_H, FOCUS_LIFT, FOCUS_GAP, MIN_GAP, isTouch,
+  FOCUS_GROW, FOCUS_MAX_W, FOCUS_MAX_H, FOCUS_LIFT, FOCUS_GAP, MIN_GAP, isTouch,
 } from './constants.js';
 
 export class ForceField {
@@ -40,16 +40,19 @@ export class ForceField {
     if (isTouch) requestAnimationFrame(() => this.apply());
   }
 
-  // The box a focused card grows into: same aspect ratio as its image, about
-  // FOCUS_AREA times the base card's area, then clamped so it never grows too
-  // large (and so the ripple of displaced neighbours stays small).
+  // The box a focused card grows into: the smallest box of the image's own
+  // aspect ratio that still contains the base card (so the card only ever
+  // grows outward, revealing the cropped parts, never shrinks a side), times
+  // FOCUS_GROW, then clamped to the viewport and the max-size multiples.
   _expandedBox(aspect) {
-    const area = CARD_W * CARD_H * FOCUS_AREA;
-    let w = Math.sqrt(area * aspect);
-    let h = Math.sqrt(area / aspect);
-    const maxW = Math.min(CARD_W * FOCUS_MAX_W, window.innerWidth * (isTouch ? 0.82 : 0.62));
-    const maxH = Math.min(CARD_H * FOCUS_MAX_H, window.innerHeight * (isTouch ? 0.6 : 0.82));
-    const fit = Math.min(1, maxW / w, maxH / h); // only ever shrink, never inflate
+    let w; let h;
+    if (aspect >= BASE_AR) { h = CARD_H; w = CARD_H * aspect; } // wide: grow width
+    else { w = CARD_W; h = CARD_W / aspect; }                   // tall: grow height
+    w *= FOCUS_GROW; h *= FOCUS_GROW;
+
+    const maxW = Math.min(CARD_W * FOCUS_MAX_W, window.innerWidth * (isTouch ? 0.86 : 0.66));
+    const maxH = Math.min(CARD_H * FOCUS_MAX_H, window.innerHeight * (isTouch ? 0.62 : 0.84));
+    const fit = Math.min(1, maxW / w, maxH / h); // only ever clamp down, never inflate
     return { w: w * fit, h: h * fit };
   }
 
@@ -137,7 +140,7 @@ export class ForceField {
     // How many rings the displacement can reach before it must decay to zero,
     // given each grid gap only affords GAP - MIN_GAP of "give" per ring.
     const slack = Math.max(1, GAP - MIN_GAP);
-    const rings = Math.min(9, 2 + Math.ceil(Math.max(
+    const rings = Math.min(10, 3 + Math.ceil(Math.max(
       (clearX - CELL_W) / slack,
       (clearY - CELL_H) / slack,
     )));
@@ -157,7 +160,9 @@ export class ForceField {
     }
 
     // Relax: push out of the focused card, then push tiles apart, repeat.
-    const iterations = rings * 2 + 4;
+    // Plenty of passes so the cascade fully converges (it's only a few dozen
+    // tiles and only runs when the focused card changes).
+    const iterations = rings * 4 + 10;
     for (let it = 0; it < iterations; it++) {
       // 1) clear the expanded focused card
       for (const n of nodes) {
