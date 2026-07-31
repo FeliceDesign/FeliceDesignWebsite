@@ -1,6 +1,9 @@
 // The "flip" detail view: a clicked card's flyer grows from its on-screen
-// position into a large preview, with the title/description fading in
-// next to it. Closing reverses the animation back onto the original card.
+// position (already expanded from the hover) into a large preview shown at
+// the image's full aspect ratio, with the title/description fading in next
+// to it. Closing reverses the animation back onto the original card.
+import { BASE_AR, CARD_W, CARD_H } from './constants.js';
+
 export class DetailView {
   constructor({ overlay, flyer, detailText, closeBtn, eyebrowEl, titleEl, descEl }) {
     this.overlay = overlay;
@@ -11,23 +14,33 @@ export class DetailView {
     this.titleEl = titleEl;
     this.descEl = descEl;
     this.activeCard = null;
+    this.onOpen = null;  // called once the start rect is captured (clears the field)
+    this.onClose = null; // called when closing (resets the field)
 
     overlay.addEventListener('click', () => this.close());
     closeBtn.addEventListener('click', () => this.close());
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.close(); });
   }
 
-  _targetRect() {
+  // A box at the work's own aspect ratio, as large as fits within a generous
+  // slice of the viewport, so the detail is shown fully uncropped.
+  _targetRect(aspect) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+
     if (vw < 760) {
-      const w = vw * 0.88;
-      const h = w * 0.667;
-      return { left: (vw - w) / 2, top: vh * 0.14, width: w, height: h };
+      const maxW = vw * 0.9;
+      const maxH = vh * 0.62;
+      let w = maxW; let h = w / aspect;
+      if (h > maxH) { h = maxH; w = h * aspect; }
+      return { left: (vw - w) / 2, top: vh * 0.1, width: w, height: h };
     }
-    const w = Math.min(vw * 0.46, 680);
-    const h = w * 0.667;
-    return { left: vw * 0.09, top: (vh - h) / 2, width: w, height: h };
+
+    const maxW = Math.min(vw * 0.5, 760);
+    const maxH = vh * 0.82;
+    let w = maxW; let h = w / aspect;
+    if (h > maxH) { h = maxH; w = h * aspect; }
+    return { left: vw * 0.08, top: (vh - h) / 2, width: w, height: h };
   }
 
   _setFlyerMedia(work) {
@@ -47,7 +60,9 @@ export class DetailView {
 
   open(card, work) {
     this.activeCard = card;
-    const r = card.getBoundingClientRect(); // real on-screen position, even on a dragged map
+    // Start from the card's live rect — it's already expanded to the image's
+    // aspect ratio from the hover, so the grow into the detail is seamless.
+    const r = card.getBoundingClientRect();
 
     this._setFlyerMedia(work);
     this.flyer.style.left = `${r.left}px`;
@@ -62,9 +77,12 @@ export class DetailView {
 
     card.style.visibility = 'hidden';
     this.overlay.classList.add('open');
+    if (this.onOpen) this.onOpen(); // reset the field now the start rect is captured
+
+    const aspect = work.aspect || r.width / r.height || BASE_AR;
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      const t = this._targetRect();
+      const t = this._targetRect(aspect);
       this.flyer.style.left = `${t.left}px`;
       this.flyer.style.top = `${t.top}px`;
       this.flyer.style.width = `${t.width}px`;
@@ -89,7 +107,21 @@ export class DetailView {
 
   close() {
     if (!this.activeCard) return;
-    const r = this.activeCard.getBoundingClientRect();
+    const card = this.activeCard;
+
+    // Collapse the (hidden) card back to its grid size instantly, so the
+    // flyer flies home to where the card will actually reappear rather than
+    // to its expanded footprint.
+    card.style.transition = 'none';
+    card.style.width = `${CARD_W}px`;
+    card.style.height = `${CARD_H}px`;
+    card.style.transform = '';
+    card.style.zIndex = '';
+    card.classList.remove('focused');
+    const r = card.getBoundingClientRect();
+    requestAnimationFrame(() => { card.style.transition = ''; });
+
+    if (this.onClose) this.onClose(); // reset the rest of the field
 
     this.detailText.classList.remove('show');
     this.detailText.style.transform = '';
@@ -102,7 +134,6 @@ export class DetailView {
     this.flyer.style.height = `${r.height}px`;
     this.flyer.style.boxShadow = '0 0 0 rgba(0,0,0,0)';
 
-    const card = this.activeCard;
     const finish = () => {
       this.flyer.style.display = 'none';
       card.style.visibility = 'visible';

@@ -20,9 +20,14 @@ export const REPEAT = 3;
 // static, 1 = moves exactly with the cards).
 export const PARALLAX = 0.18;
 
-// Hover force field: how far it reaches, how much cards grow/lift/get
-// pushed aside.
-export const FIELD_RADIUS = isTouch ? 210 : 300;
-export const FIELD_MAX_GROW = 0.20;
-export const FIELD_LIFT = 7;
-export const FIELD_PUSH = isTouch ? 18 : 26;
+// The base card box aspect ratio (all grid cards share it). Hovering a card
+// morphs its box towards the image's own aspect ratio, revealing the parts
+// that are cropped away in the grid.
+export const BASE_AR = CARD_W / CARD_H;
+
+// Focused card: how much bigger it gets. The expanded card keeps roughly
+// this multiple of the base card's *area* (so a tall image and a wide image
+// end up feeling like the same amount of "zoom", just in different shapes).
+export const FOCUS_AREA = isTouch ? 1.9 : 2.15;
+export const FOCUS_LIFT = 10; // px the focused card floats up
+export const FOCUS_GAP = 16;  // breathing space kept between it and its neighbours

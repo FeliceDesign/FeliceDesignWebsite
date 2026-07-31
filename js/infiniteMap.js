@@ -85,6 +85,7 @@ export class InfiniteMap {
           card.style.top = `${y}px`;
           card.dataset.idx = i;
           card.dataset.tag = work.tag;
+          card._work = work; // read by the force field for its aspect ratio
           card.innerHTML = cardMarkup(work);
 
           this.world.appendChild(card);

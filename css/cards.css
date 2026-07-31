@@ -6,17 +6,25 @@
   position: absolute;
   overflow: hidden;
   background: var(--panel);
-  transform: scale(1) translateY(0);
-  transition: transform .45s var(--ease), opacity .5s var(--ease), filter .5s var(--ease);
+  /* Size + offset are driven by the force field (js/forceField.js); these
+     transitions are what make the focused card grow and the neighbours slide
+     away smoothly. */
+  transition: width .5s var(--ease), height .5s var(--ease),
+    transform .5s var(--ease), box-shadow .5s var(--ease),
+    opacity .5s var(--ease), filter .5s var(--ease);
   will-change: transform;
   /* No border-radius on purpose: sharp, minimal look. */
 }
-/* While actively dragging: no soft scale spring-back. */
+/* While actively dragging: snap back to the grid instead of easing, so
+   flinging the map never leaves a card mid-expansion. */
 body.dragging .card { transition: opacity .5s var(--ease), filter .5s var(--ease); }
 
 .card-img, .card-video {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
+  /* `cover` fills the card box. In the grid the box is 3:2 so the image is
+     cropped; when a card is focused its box morphs to the image's own aspect
+     ratio, so `cover` ends up showing the whole, uncropped image. */
   background-size: cover; background-position: center; background-repeat: no-repeat;
   object-fit: cover;
   filter: brightness(0.72) saturate(0.8) contrast(1.03);
@@ -24,18 +32,12 @@ body.dragging .card { transition: opacity .5s var(--ease), filter .5s var(--ease
   transition: filter .6s var(--ease), transform .9s var(--ease);
   pointer-events: none;
 }
-/* On hover/focus, show the image's full, uncropped aspect ratio instead of
-   the cropped cover-fill used in the grid. Letterboxing falls back to the
-   card's own (dark) background, so it reads as intentional, not empty. */
-.card:hover .card-img, .card.focused .card-img {
-  background-size: contain;
+.card.focused .card-img, .card.focused .card-video {
   filter: brightness(1.0) saturate(1.05);
   transform: scale(1);
 }
-.card:hover .card-video, .card.focused .card-video {
-  object-fit: contain;
-  filter: brightness(1.0) saturate(1.05);
-  transform: scale(1);
+.card.focused {
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
 }
 
 .card::after {
@@ -43,7 +45,7 @@ body.dragging .card { transition: opacity .5s var(--ease), filter .5s var(--ease
   background: linear-gradient(to top, rgba(6,7,8,0.9), transparent 55%);
   opacity: 0; transition: opacity .5s var(--ease); pointer-events: none;
 }
-.card:hover::after, .card.focused::after { opacity: 1; }
+.card.focused::after { opacity: 1; }
 
 .card-title {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
@@ -52,7 +54,7 @@ body.dragging .card { transition: opacity .5s var(--ease), filter .5s var(--ease
   transition: opacity .45s var(--ease), transform .45s var(--ease);
   pointer-events: none;
 }
-.card:hover .card-title, .card.focused .card-title { opacity: 1; transform: translateY(0); }
+.card.focused .card-title { opacity: 1; transform: translateY(0); }
 .card-title .t {
   font-family: 'Fraunces', serif; font-weight: 500; font-size: 1.2rem; line-height: 1.05;
   letter-spacing: -0.01em; display: block;

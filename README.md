@@ -1,8 +1,9 @@
 # FeliceDesignWebsite
 
 An infinite, draggable map of felice design's work. Cards can be dragged and
-flung around an endless grid, react to hover with a small force field, and
-flip open into a detail view when clicked.
+flung around an endless grid; hovering a card grows it to its image's full,
+uncropped aspect ratio while its neighbours slide aside to make room, and
+clicking flips it open into a full-aspect detail view.
 
 Ported and refactored from a single-file prototype (`felice-map.html`) into
 a small, modular vanilla HTML/CSS/JS site — no build step required.
@@ -19,16 +20,19 @@ css/
   cards.css               the map itself + the work cards on it
   detail.css              the flip / detail overlay
 js/
-  constants.js          layout + behaviour tuning (sizes, radii, speeds)
+  constants.js          layout + behaviour tuning (sizes, speeds, expansion)
   grid.js                 picks a COLS x ROWS shape for a given work count
   works.js                  the portfolio pieces shown on the map
-  infiniteMap.js              builds the endless grid, handles drag + inertia
-  forceField.js                hover force field (scale/push cards near cursor)
-  tabs.js                        category tabs ("Alles" / "Fotografie" / "3D") —
-                                  each rebuilds the map with its own works, in
-                                  its own grid
-  detailView.js                    opens/closes the flip detail view
-  main.js                           wires all of the above together
+  aspect.js                   measures each work's true aspect ratio
+  infiniteMap.js                builds the endless grid, handles drag + inertia
+  forceField.js                  hover focus field: expands the card under the
+                                  cursor to its full aspect ratio and pushes
+                                  its neighbours out of the way
+  tabs.js                          category tabs ("Alles" / "Fotografie" / "3D") —
+                                    each rebuilds the map with its own works, in
+                                    its own grid
+  detailView.js                      opens/closes the flip detail view
+  main.js                             wires all of the above together
 assets/
   logo.svg               felice design logo
   wave-pattern.png       background texture

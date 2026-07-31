@@ -3,10 +3,15 @@
 // others through the small set of callbacks assigned here.
 import { isTouch } from './constants.js';
 import { WORKS } from './works.js';
+import { measureAspects } from './aspect.js';
 import { InfiniteMap } from './infiniteMap.js';
 import { ForceField } from './forceField.js';
 import { initTabs } from './tabs.js';
 import { DetailView } from './detailView.js';
+
+// Learn each work's true aspect ratio so cards can expand to their full,
+// uncropped shape on hover and in the detail view.
+measureAspects(WORKS);
 
 const world = document.getElementById('world');
 const viewport = document.getElementById('viewport');
@@ -39,6 +44,8 @@ const detail = new DetailView({
   titleEl: document.getElementById('dTitle'),
   descEl: document.getElementById('dDesc'),
 });
+detail.onOpen = () => field.clear();  // reset expanded/pushed cards behind the overlay
+detail.onClose = () => field.clear();
 map.onCardOpen = (card, work) => detail.open(card, work);
 
 initTabs({
