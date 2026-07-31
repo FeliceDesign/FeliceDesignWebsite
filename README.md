@@ -29,6 +29,7 @@ js/
 assets/
   logo.svg               felice design logo
   wave-pattern.png       background texture
+  photos/                optimized copies of the work photos (see below)
 ```
 
 ## Adding a work
@@ -43,10 +44,18 @@ cards from different tiles on top of each other.
 
 ## Photos & videos
 
-Images and videos are not duplicated into this repo — they're loaded live
-from the [FeliceDesignPortfolio](https://github.com/FeliceDesign/FeliceDesignPortfolio)
-repo (via `raw.githubusercontent.com`) and from Cloudinary. Update the
-photos there and the map picks them up automatically.
+Photos live in `assets/photos/` as web-sized copies (longest edge capped at
+1600px, JPEG quality 78) — resized from the full-resolution originals in
+[FeliceDesignPortfolio](https://github.com/FeliceDesign/FeliceDesignPortfolio).
+Serving those originals directly (several MB each) made the map painfully
+slow to load, so optimized copies are committed here instead.
+
+To add or refresh a photo: drop the full-res original in, resize it (e.g.
+`Image.open(...).resize(...)` with Pillow, capped at ~1600px / quality ~78),
+save it into `assets/photos/`, and reference it from `js/works.js`.
+
+The one video stays on Cloudinary, which already handles delivery and
+optimization, so it's referenced directly by URL.
 
 ## Running locally
 
