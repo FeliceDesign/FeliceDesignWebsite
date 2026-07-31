@@ -24,11 +24,16 @@ export const REPEAT = 3;
 // static, 1 = moves exactly with the cards).
 export const PARALLAX = 0.18;
 
-// The map counts as "still" (and the focus field starts expanding) once its
-// glide speed drops below this many px/frame. Waiting for a dead stop made
-// the expansion feel delayed after a fling, since the 0.92 friction tail is
-// long; this lets it react as soon as the map is barely creeping.
-export const SETTLE_SPEED = 3;
+// How far the cursor's influence reaches, as a multiple of the grid pitch.
+// Cards within this radius react to the cursor every frame (nearest = most),
+// which is what gives the field its continuous, gradual feel.
+export const FIELD_RADIUS = Math.max(CELL_W, CELL_H) * (isTouch ? 1.5 : 1.6);
+
+// How much a non-dominant card gently puffs up at full influence. Only the
+// single nearest card morphs to its full aspect ratio; the rest just scale a
+// little by proximity, which is what makes several tiles feel alive without
+// several of them ever trying to grow tall at once (which couldn't pack).
+export const FIELD_SCALE = 0.16;
 
 // The base card box aspect ratio (all grid cards share it). Hovering a card
 // morphs its box towards the image's own aspect ratio, revealing the parts
@@ -40,9 +45,12 @@ export const BASE_AR = CARD_W / CARD_H;
 // so a focused card only ever grows outward (revealing the cropped parts),
 // never shrinks a side. Then clamped to the viewport and to these multiples
 // of the base card so the ripple of pushed neighbours stays a few rings.
-export const FOCUS_GROW = 1.12;
-export const FOCUS_MAX_W = 2.3; // × CARD_W
-export const FOCUS_MAX_H = 2.5; // × CARD_H
+// Kept a hair under 2× the grid pitch on purpose: two fully-grown cards two
+// slots apart then still can't reach each other, so keeping grid-adjacent
+// tiles apart is enough to keep every tile apart.
+export const FOCUS_GROW = 1.1;
+export const FOCUS_MAX_W = 2.1; // × CARD_W
+export const FOCUS_MAX_H = 2.2; // × CARD_H
 export const FOCUS_LIFT = 10;   // px the focused card floats up
 
 // Minimum breathing space that must always remain between tiles: FOCUS_GAP
