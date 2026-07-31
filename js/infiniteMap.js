@@ -1,14 +1,14 @@
 // Builds the endless, draggable map of work cards.
 //
-// One "tile" is a COLS x ROWS grid holding one card per work. The tile is
+// One "tile" is a COLS x ROWS grid holding one card per work (grid.js picks
+// COLS/ROWS to fit whatever set of works is currently shown). The tile is
 // cloned REPEAT x REPEAT so cards always surround the visible viewport.
 // Dragging moves #world via a CSS transform; when a tile drifts fully out
 // of view, its world position is wrapped modulo the tile size, so the map
 // feels infinite without ever growing the DOM.
-import {
-  CARD_W, CARD_H, GAP, COLS, ROWS, CELL_W, CELL_H, TILE_W, TILE_H, REPEAT, PARALLAX, isTouch,
-} from './constants.js';
+import { CARD_W, CARD_H, GAP, REPEAT, PARALLAX, isTouch } from './constants.js';
 import { TAGLABEL } from './works.js';
+import { gridSize } from './grid.js';
 
 function cardMarkup(work) {
   const media = work.media.type === 'video'
@@ -26,9 +26,9 @@ export class InfiniteMap {
   constructor({ world, viewport, works, parallaxEls }) {
     this.world = world;
     this.viewport = viewport;
-    this.works = works;
     this.parallaxEls = parallaxEls;
-    this.cards = [];
+    this.cards = []; // kept as a stable array (mutated in place) so other
+    // modules that hold a reference to it (e.g. ForceField) see updates.
 
     // Called by main.js to react to drag/inertia (used for the touch force
     // field, which has to follow cards through the fixed screen center).
@@ -38,9 +38,6 @@ export class InfiniteMap {
     this.onCardOpen = null;
     this.onHintDismiss = null;
 
-    // World position starts centered in the middle tile.
-    this.posX = -TILE_W;
-    this.posY = -TILE_H;
     this.velX = 0; this.velY = 0;
     this.dragging = false; this.moved = false;
     this.lastX = 0; this.lastY = 0;
@@ -48,9 +45,8 @@ export class InfiniteMap {
     // (posX/posY jump periodically, this doesn't).
     this.accX = 0; this.accY = 0;
 
-    this._buildCards();
     this._bindPointerEvents();
-    this._applyTransform();
+    this.setWorks(works);
     this._runInertia();
   }
 
@@ -58,15 +54,28 @@ export class InfiniteMap {
     return this.dragging;
   }
 
-  _buildCards() {
+  // Rebuilds the map for a new set of works (e.g. switching category tabs),
+  // with its own grid shape sized to fit exactly that many works.
+  setWorks(works) {
+    this.works = works;
+
+    const { cols, rows } = gridSize(works.length);
+    this.cellW = CARD_W + GAP;
+    this.cellH = CARD_H + GAP;
+    this.tileW = cols * this.cellW;
+    this.tileH = rows * this.cellH;
+
+    this.world.innerHTML = '';
+    this.cards.length = 0;
+
     for (let ty = 0; ty < REPEAT; ty++) {
       for (let tx = 0; tx < REPEAT; tx++) {
-        for (let i = 0; i < this.works.length; i++) {
-          const work = this.works[i];
-          const col = i % COLS;
-          const row = Math.floor(i / COLS);
-          const x = tx * TILE_W + col * CELL_W;
-          const y = ty * TILE_H + row * CELL_H;
+        for (let i = 0; i < works.length; i++) {
+          const work = works[i];
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const x = tx * this.tileW + col * this.cellW;
+          const y = ty * this.tileH + row * this.cellH;
 
           const card = document.createElement('div');
           card.className = 'card';
@@ -83,14 +92,20 @@ export class InfiniteMap {
         }
       }
     }
+
+    // Re-center on the new grid and drop any momentum from before the switch.
+    this.posX = -this.tileW;
+    this.posY = -this.tileH;
+    this.velX = 0; this.velY = 0;
+    this._applyTransform();
   }
 
   _applyTransform() {
     // Wrap via modulo: no matter how much momentum builds up, the position
     // always stays within one tile's range, so it can never outrun the
     // REPEAT x REPEAT buffer and show empty space.
-    this.posX = ((this.posX % TILE_W) + TILE_W) % TILE_W - TILE_W;
-    this.posY = ((this.posY % TILE_H) + TILE_H) % TILE_H - TILE_H;
+    this.posX = ((this.posX % this.tileW) + this.tileW) % this.tileW - this.tileW;
+    this.posY = ((this.posY % this.tileH) + this.tileH) % this.tileH - this.tileH;
     this.world.style.transform = `translate3d(${this.posX}px, ${this.posY}px, 0)`;
 
     // Parallax: shift the background pattern by a fraction of the drag,

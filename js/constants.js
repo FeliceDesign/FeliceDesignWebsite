@@ -8,16 +8,9 @@ export const CARD_W = isTouch ? 190 : 300;
 export const CARD_H = isTouch ? 127 : 200; // keeps the 3:2 aspect ratio
 export const GAP = isTouch ? 16 : 26;
 
-// One "tile" is a COLS x ROWS grid of cards, one per work. COLS * ROWS must
-// equal WORKS.length, or the grid math in map.js starts overlapping cards
-// from neighbouring tiles.
-export const COLS = 6;
-export const ROWS = 4;
-
-export const CELL_W = CARD_W + GAP;
-export const CELL_H = CARD_H + GAP;
-export const TILE_W = COLS * CELL_W;
-export const TILE_H = ROWS * CELL_H;
+// One "tile" is a COLS x ROWS grid of cards, one per work — see grid.js.
+// COLS * ROWS always equals however many works are currently shown, so
+// each category tab gets its own tile shape instead of a fixed one.
 
 // Tiles are cloned REPEAT x REPEAT so there's always a buffer of cards
 // around the visible area, without creating infinite DOM nodes.

@@ -51,7 +51,7 @@ export class ForceField {
     let focusStrength = 0; // strongest card -> .focused (reveals title on touch)
 
     for (const card of this.cards) {
-      if (card.classList.contains('dim') || card.style.visibility === 'hidden') {
+      if (card.style.visibility === 'hidden') {
         card.style.transform = '';
         card.classList.remove('focused');
         continue;

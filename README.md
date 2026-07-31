@@ -20,12 +20,15 @@ css/
   detail.css              the flip / detail overlay
 js/
   constants.js          layout + behaviour tuning (sizes, radii, speeds)
-  works.js                the portfolio pieces shown on the map
-  infiniteMap.js          builds the endless grid, handles drag + inertia
-  forceField.js            hover force field (scale/push cards near cursor)
-  tabs.js                    category filter ("Alles" / "Fotografie" / "3D")
-  detailView.js              opens/closes the flip detail view
-  main.js                     wires all of the above together
+  grid.js                 picks a COLS x ROWS shape for a given work count
+  works.js                  the portfolio pieces shown on the map
+  infiniteMap.js              builds the endless grid, handles drag + inertia
+  forceField.js                hover force field (scale/push cards near cursor)
+  tabs.js                        category tabs ("Alles" / "Fotografie" / "3D") —
+                                  each rebuilds the map with its own works, in
+                                  its own grid
+  detailView.js                    opens/closes the flip detail view
+  main.js                           wires all of the above together
 assets/
   logo.svg               felice design logo
   wave-pattern.png       background texture
@@ -38,9 +41,9 @@ Open `js/works.js` and add an entry to the `WORKS` array — `tag` must be one
 of the keys in `TAGLABEL`, and `media` is either
 `{ type: 'image', src }` or `{ type: 'video', src }`.
 
-`js/constants.js` defines `COLS` and `ROWS`; their product must always equal
-`WORKS.length`, or the infinite tiling in `infiniteMap.js` starts placing
-cards from different tiles on top of each other.
+Each category tab shows only its own works, in its own grid — `js/grid.js`
+picks a COLS x ROWS shape for however many works that turns out to be, so
+there's nothing to keep in sync by hand.
 
 ## Photos & videos
 

@@ -12,10 +12,17 @@ const world = document.getElementById('world');
 const viewport = document.getElementById('viewport');
 const parallaxEls = [document.getElementById('waves'), document.getElementById('waves-glow')];
 
+// Each tab shows its own set of works in its own grid (see js/tabs.js).
+const worksByFilter = {
+  all: WORKS,
+  foto: WORKS.filter((w) => w.tag === 'foto'),
+  d3: WORKS.filter((w) => w.tag === 'd3'),
+};
+
 const hint = document.getElementById('hint');
 if (isTouch) hint.textContent = 'Ziehen — die Mitte ist im Fokus';
 
-const map = new InfiniteMap({ world, viewport, works: WORKS, parallaxEls });
+const map = new InfiniteMap({ world, viewport, works: worksByFilter.all, parallaxEls });
 const field = new ForceField({ cards: map.cards, isDragging: () => map.isDragging() });
 
 map.onDragStart = () => field.clear(); // desktop: drop the zoom the instant a drag starts
@@ -36,6 +43,9 @@ map.onCardOpen = (card, work) => detail.open(card, work);
 
 initTabs({
   tabsEl: document.getElementById('tabs'),
-  cards: map.cards,
-  onFilterChange: () => field.clear(),
+  worksByFilter,
+  onFilterChange: (works) => {
+    field.clear();
+    map.setWorks(works);
+  },
 });

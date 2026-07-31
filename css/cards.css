@@ -13,20 +13,27 @@
 }
 /* While actively dragging: no soft scale spring-back. */
 body.dragging .card { transition: opacity .5s var(--ease), filter .5s var(--ease); }
-.card.dim { opacity: 0.2; filter: grayscale(0.85); }
 
 .card-img, .card-video {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
-  background-size: cover; background-position: center;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
   object-fit: cover;
   filter: brightness(0.72) saturate(0.8) contrast(1.03);
   transform: scale(1.03);
   transition: filter .6s var(--ease), transform .9s var(--ease);
   pointer-events: none;
 }
-.card:hover .card-img, .card.focused .card-img,
+/* On hover/focus, show the image's full, uncropped aspect ratio instead of
+   the cropped cover-fill used in the grid. Letterboxing falls back to the
+   card's own (dark) background, so it reads as intentional, not empty. */
+.card:hover .card-img, .card.focused .card-img {
+  background-size: contain;
+  filter: brightness(1.0) saturate(1.05);
+  transform: scale(1);
+}
 .card:hover .card-video, .card.focused .card-video {
+  object-fit: contain;
   filter: brightness(1.0) saturate(1.05);
   transform: scale(1);
 }
