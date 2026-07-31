@@ -28,11 +28,14 @@ const hint = document.getElementById('hint');
 if (isTouch) hint.textContent = 'Ziehen — die Mitte ist im Fokus';
 
 const map = new InfiniteMap({ world, viewport, works: worksByFilter.all, parallaxEls });
-const field = new ForceField({ cards: map.cards, isDragging: () => map.isDragging() });
+const field = new ForceField({ cards: map.cards, world, isMoving: () => map.isMoving() });
 
-map.onDragStart = () => field.clear(); // desktop: drop the zoom the instant a drag starts
-map.onDragMove = () => field.apply(); // touch: field follows cards sliding past the center
-map.onFrame = () => field.apply(); // touch: keep the field alive during inertia glide
+// The field collapses everything while the map moves and re-expands the
+// centre/hovered card once it settles.
+map.onDragStart = () => field.clear();
+map.onDragMove = () => field.apply();
+map.onFrame = () => field.apply();
+map.onSettle = () => field.apply();
 map.onHintDismiss = () => hint.classList.add('gone');
 
 const detail = new DetailView({

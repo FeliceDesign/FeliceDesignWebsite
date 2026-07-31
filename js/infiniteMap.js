@@ -35,8 +35,10 @@ export class InfiniteMap {
     this.onDragStart = null;
     this.onDragMove = null;
     this.onFrame = null;
+    this.onSettle = null;
     this.onCardOpen = null;
     this.onHintDismiss = null;
+    this._moving = false;
 
     this.velX = 0; this.velY = 0;
     this.dragging = false; this.moved = false;
@@ -52,6 +54,11 @@ export class InfiniteMap {
 
   isDragging() {
     return this.dragging;
+  }
+
+  // True while the map is being dragged or still gliding from inertia.
+  isMoving() {
+    return this.dragging || this.velX !== 0 || this.velY !== 0;
   }
 
   // Rebuilds the map for a new set of works (e.g. switching category tabs),
@@ -122,14 +129,19 @@ export class InfiniteMap {
   _runInertia() {
     const tick = () => {
       if (!this.dragging) {
-        this.posX += this.velX; this.posY += this.velY;
-        this.accX += this.velX; this.accY += this.velY;
-        this.velX *= 0.92; this.velY *= 0.92; // friction -> smooth glide-out
-        if (Math.abs(this.velX) < 0.05) this.velX = 0;
-        if (Math.abs(this.velY) < 0.05) this.velY = 0;
         if (this.velX || this.velY) {
+          this.posX += this.velX; this.posY += this.velY;
+          this.accX += this.velX; this.accY += this.velY;
+          this.velX *= 0.92; this.velY *= 0.92; // friction -> smooth glide-out
+          if (Math.abs(this.velX) < 0.05) this.velX = 0;
+          if (Math.abs(this.velY) < 0.05) this.velY = 0;
           this._applyTransform();
-          if (isTouch && this.onFrame) this.onFrame();
+          this._moving = true;
+          if (this.onFrame) this.onFrame();
+        } else if (this._moving) {
+          // Just came to rest: let the focus field settle on the centre card.
+          this._moving = false;
+          if (this.onSettle) this.onSettle();
         }
       }
       requestAnimationFrame(tick);
@@ -162,7 +174,7 @@ export class InfiniteMap {
       this.velX = dx; this.velY = dy; // last movement = starting momentum
       this.lastX = p.x; this.lastY = p.y;
       this._applyTransform();
-      if (isTouch && this.onDragMove) this.onDragMove(); // field follows cards sliding past
+      if (this.onDragMove) this.onDragMove(); // let the field react to the drag
       if (this.onHintDismiss) this.onHintDismiss();
     };
     const up = () => {

@@ -9,9 +9,9 @@
   /* Size + offset are driven by the force field (js/forceField.js); these
      transitions are what make the focused card grow and the neighbours slide
      away smoothly. */
-  transition: width .5s var(--ease), height .5s var(--ease),
-    transform .5s var(--ease), box-shadow .5s var(--ease),
-    opacity .5s var(--ease), filter .5s var(--ease);
+  transition: width .55s var(--ease), height .55s var(--ease),
+    transform .55s var(--ease), box-shadow .55s var(--ease),
+    opacity .55s var(--ease), filter .55s var(--ease);
   will-change: transform;
   /* No border-radius on purpose: sharp, minimal look. */
 }
