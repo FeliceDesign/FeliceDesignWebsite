@@ -4,9 +4,11 @@
 // centered on the screen instead of following a cursor.
 export const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
 
-export const CARD_W = isTouch ? 190 : 300;
-export const CARD_H = isTouch ? 127 : 200; // keeps the 3:2 aspect ratio
-export const GAP = isTouch ? 16 : 26;
+// Rest cards are square, so a landscape image and a portrait image grow to a
+// similar size when focused (each just extends along its longer axis).
+export const CARD_W = isTouch ? 150 : 240;
+export const CARD_H = CARD_W;
+export const GAP = isTouch ? 16 : 24;
 
 // Grid pitch: the distance from one card slot to the next.
 export const CELL_W = CARD_W + GAP;
@@ -24,42 +26,36 @@ export const REPEAT = 3;
 // static, 1 = moves exactly with the cards).
 export const PARALLAX = 0.18;
 
+// The base card box aspect ratio (square).
+export const BASE_AR = CARD_W / CARD_H;
+
 // How far the cursor's influence reaches, as a multiple of the grid pitch.
 // Cards within this radius react to the cursor every frame (nearest = most),
 // which is what gives the field its continuous, gradual feel.
-export const FIELD_RADIUS = Math.max(CELL_W, CELL_H) * (isTouch ? 1.5 : 1.6);
+export const FIELD_RADIUS = Math.max(CELL_W, CELL_H) * 1.4;
 
-// How much a non-dominant card gently puffs up at full influence. Only the
-// single nearest card morphs to its full aspect ratio; the rest just scale a
-// little by proximity, which is what makes several tiles feel alive without
-// several of them ever trying to grow tall at once (which couldn't pack).
+// How much a card gently puffs up at full influence. Every reachable card
+// scales a little by proximity (that's the "field"); on top of that, only the
+// single nearest card morphs to its full aspect ratio.
 export const FIELD_SCALE = 0.16;
 
-// The base card box aspect ratio (all grid cards share it). Hovering a card
-// morphs its box towards the image's own aspect ratio, revealing the parts
-// that are cropped away in the grid.
-export const BASE_AR = CARD_W / CARD_H;
+// The aspect-morph only ramps in once a card is this centred under the
+// pointer, so at the hand-off point between two cards (where influence is
+// ~half) neither is mid-morph and the dominant card can swap without a jump.
+export const FOCUS_MORPH_START = 0.5;
 
-// Focused card growth. The expanded box is the smallest box of the image's
-// own aspect ratio that still *contains* the base card, times FOCUS_GROW —
-// so a focused card only ever grows outward (revealing the cropped parts),
-// never shrinks a side. Then clamped to the viewport and to these multiples
-// of the base card so the ripple of pushed neighbours stays a few rings.
-// A focused card grows to roughly this multiple of the base card's *area*,
-// at its image's own aspect ratio — so a 3:2 image and a portrait both swell
-// to a similar overall size, rather than a 3:2 (already the grid ratio)
-// barely changing. FOCUS_GROW is a floor for very tall/wide images so they
-// still fully contain the base card. The max multiples keep the box a hair
-// under 2× the grid pitch, so two fully-grown cards two slots apart still
-// can't reach each other and keeping grid-adjacent tiles apart is enough.
-export const FOCUS_AREA = isTouch ? 1.8 : 2.0;
+// A focused card grows to roughly this multiple of the base card's *area*, at
+// its image's own aspect ratio — so every aspect ratio swells to a similar
+// overall size. FOCUS_GROW is a floor for very tall/wide images so they still
+// fully contain the base card. The max multiples keep the box a hair under 2×
+// the grid pitch, so two fully-grown cards two slots apart still can't reach
+// each other and keeping grid-adjacent tiles apart is enough.
+export const FOCUS_AREA = isTouch ? 1.85 : 2.0;
 export const FOCUS_GROW = 1.1;
-export const FOCUS_MAX_W = 2.1; // × CARD_W
-export const FOCUS_MAX_H = 2.2; // × CARD_H
-export const FOCUS_LIFT = 10;   // px the focused card floats up
+export const FOCUS_MAX_W = 2.05; // × CARD_W
+export const FOCUS_MAX_H = 2.05; // × CARD_H
+export const FOCUS_LIFT = isTouch ? 8 : 10; // px the focused card floats up
 
-// Minimum breathing space that must always remain between tiles: FOCUS_GAP
-// around the focused card, MIN_GAP between any two ordinary tiles. Nothing
-// is ever allowed to touch.
-export const FOCUS_GAP = isTouch ? 12 : 18;
+// Smallest gap that must always remain between any two tiles. Nothing ever
+// touches.
 export const MIN_GAP = isTouch ? 8 : 12;

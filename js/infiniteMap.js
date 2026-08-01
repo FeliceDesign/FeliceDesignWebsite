@@ -6,7 +6,7 @@
 // Dragging moves #world via a CSS transform; when a tile drifts fully out
 // of view, its world position is wrapped modulo the tile size, so the map
 // feels infinite without ever growing the DOM.
-import { CARD_W, CARD_H, GAP, REPEAT, PARALLAX, isTouch } from './constants.js';
+import { CARD_W, CARD_H, GAP, CELL_W, CELL_H, REPEAT, PARALLAX, isTouch } from './constants.js';
 import { TAGLABEL } from './works.js';
 import { gridSize } from './grid.js';
 
@@ -89,6 +89,10 @@ export class InfiniteMap {
           card.dataset.idx = i;
           card.dataset.tag = work.tag;
           card._work = work; // read by the force field for its aspect ratio
+          // Precomputed grid geometry so the field never has to read layout.
+          card._ox = x; card._oy = y;
+          card._col = Math.round(x / CELL_W);
+          card._row = Math.round(y / CELL_H);
           card.innerHTML = cardMarkup(work);
 
           this.world.appendChild(card);
