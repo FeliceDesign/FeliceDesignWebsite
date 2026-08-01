@@ -8,7 +8,11 @@ export const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').mat
 // similar size when focused (each just extends along its longer axis).
 export const CARD_W = isTouch ? 150 : 240;
 export const CARD_H = CARD_W;
-export const GAP = isTouch ? 16 : 24;
+export const GAP = isTouch ? 64 : 96;
+
+// Rounded corners at rest; the field eases these to 0 (sharp) as a card
+// morphs to its full-aspect reveal (js/forceField.js).
+export const TILE_RADIUS = isTouch ? 12 : 18;
 
 // Grid pitch: the distance from one card slot to the next.
 export const CELL_W = CARD_W + GAP;

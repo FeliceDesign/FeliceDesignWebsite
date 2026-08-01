@@ -18,7 +18,7 @@
 // A light relaxation pass then nudges tiles apart so that, however much any
 // of them have grown, none ever overlap or touch.
 import {
-  CARD_W, CARD_H, CELL_W, CELL_H, BASE_AR, FIELD_RADIUS, FIELD_SCALE, FOCUS_MORPH_START,
+  CARD_W, CARD_H, CELL_W, CELL_H, BASE_AR, TILE_RADIUS, FIELD_RADIUS, FIELD_SCALE, FOCUS_MORPH_START,
   FOCUS_AREA, FOCUS_GROW, FOCUS_MAX_W, FOCUS_MAX_H, FOCUS_LIFT, MIN_GAP, isTouch,
 } from './constants.js';
 
@@ -118,7 +118,7 @@ export class ForceField {
 
       const node = {
         card, col: card._col, row: card._row, x: card._ox, y: card._oy,
-        infl, d: dist, w: CARD_W, h: CARD_H, scale: 1, dom: false, dx: 0, dy: 0,
+        infl, d: dist, w: CARD_W, h: CARD_H, scale: 1, morph: 0, dom: false, dx: 0, dy: 0,
       };
       nodes.push(node);
       byKey.set(`${node.col},${node.row}`, node);
@@ -144,6 +144,7 @@ export class ForceField {
         const full = this._fullBox((n.card._work && n.card._work.aspect) || BASE_AR);
         n.w += (full.w - n.w) * morph;
         n.h += (full.h - n.h) * morph;
+        n.morph = morph;
         n.dom = true;
       }
     }
@@ -178,6 +179,8 @@ export class ForceField {
         n.card.style.transform =
           `translate(${n.dx.toFixed(2)}px, ${(n.dy + lift).toFixed(2)}px) scale(${n.scale.toFixed(3)})`;
       }
+      // Corners ease from rounded (rest) to sharp as the card reveals itself.
+      n.card.style.borderRadius = `${(TILE_RADIUS * (1 - n.morph)).toFixed(1)}px`;
       n.card.style.zIndex = String(5 + Math.round(n.infl * 40));
       n.card.classList.toggle('focused', n === primary && primaryInfl > 0.45);
       touched.add(n.card);
@@ -238,6 +241,7 @@ export class ForceField {
     card.style.width = `${CARD_W}px`;
     card.style.height = `${CARD_H}px`;
     card.style.transform = '';
+    card.style.borderRadius = `${TILE_RADIUS}px`;
     card.style.zIndex = '';
     card.classList.remove('focused');
   }
