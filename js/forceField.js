@@ -13,12 +13,14 @@
 // of them have grown, none ever overlap or touch.
 import {
   CARD_W, CARD_H, CELL_W, CELL_H, BASE_AR, FIELD_RADIUS, FIELD_SCALE,
-  FOCUS_GROW, FOCUS_MAX_W, FOCUS_MAX_H, FOCUS_LIFT, MIN_GAP, isTouch,
+  FOCUS_AREA, FOCUS_GROW, FOCUS_MAX_W, FOCUS_MAX_H, FOCUS_LIFT, MIN_GAP, isTouch,
 } from './constants.js';
 
 // Beyond the influence radius, cards can still get shoved aside to clear a
-// big neighbour, so we consider tiles within this larger gather radius.
-const GATHER = FIELD_RADIUS + Math.max(CARD_W * FOCUS_MAX_W, CARD_H * FOCUS_MAX_H) + 2 * Math.max(CELL_W, CELL_H);
+// big neighbour, and that push cascades several tiles out, so we consider
+// tiles within this larger gather radius (enough rings for the cascade to
+// fully fade before the edge of the considered set).
+const GATHER = FIELD_RADIUS + Math.max(CARD_W * FOCUS_MAX_W, CARD_H * FOCUS_MAX_H) + 7 * Math.max(CELL_W, CELL_H);
 
 export class ForceField {
   constructor({ cards, world, isDragging }) {
@@ -39,14 +41,23 @@ export class ForceField {
     if (isTouch) requestAnimationFrame(() => this.apply());
   }
 
-  // The box a card would grow to if fully focused: the smallest box of its
-  // image's aspect ratio that still contains the base card (so it only ever
-  // grows outward), times FOCUS_GROW, clamped to the viewport and max sizes.
+  // The box a card would grow to if fully focused, at its image's aspect
+  // ratio. It's the larger of two boxes of that ratio: one sized to a target
+  // area (so every aspect ends up a similar overall size), and one just big
+  // enough to contain the base card (a floor for very tall/wide images, so
+  // they never shrink a side). Then clamped to the viewport and max sizes.
   _fullBox(aspect) {
-    let w; let h;
-    if (aspect >= BASE_AR) { h = CARD_H; w = CARD_H * aspect; }
-    else { w = CARD_W; h = CARD_W / aspect; }
-    w *= FOCUS_GROW; h *= FOCUS_GROW;
+    const area = CARD_W * CARD_H * FOCUS_AREA;
+    const aw = Math.sqrt(area * aspect);
+    const ah = Math.sqrt(area / aspect);
+
+    let cw; let ch;
+    if (aspect >= BASE_AR) { ch = CARD_H; cw = CARD_H * aspect; }
+    else { cw = CARD_W; ch = CARD_W / aspect; }
+
+    let w = Math.max(aw, cw * FOCUS_GROW);
+    let h = Math.max(ah, ch * FOCUS_GROW);
+
     const maxW = Math.min(CARD_W * FOCUS_MAX_W, window.innerWidth * (isTouch ? 0.86 : 0.66));
     const maxH = Math.min(CARD_H * FOCUS_MAX_H, window.innerHeight * (isTouch ? 0.62 : 0.84));
     const fit = Math.min(1, maxW / w, maxH / h);
@@ -122,13 +133,17 @@ export class ForceField {
     // 3) Relax: push grid-neighbours apart until every pair keeps MIN_GAP,
     //    given their grown sizes. Deeper when the dominant card is strongly
     //    expanded, cheaper when the field is calm.
-    const iterations = 12 + Math.round(primaryInfl * 22);
+    const iterations = 20 + Math.round(primaryInfl * 28);
     for (let it = 0; it < iterations; it++) {
       for (const n of nodes) {
-        this._separate(n, byKey.get(`${n.col + 1},${n.row}`));
-        this._separate(n, byKey.get(`${n.col},${n.row + 1}`));
-        this._separate(n, byKey.get(`${n.col + 1},${n.row + 1}`));
-        this._separate(n, byKey.get(`${n.col + 1},${n.row - 1}`));
+        // Fixed push direction per grid relationship keeps the cascade stable:
+        // a row-neighbour only ever slides sideways, a column-neighbour only
+        // up/down, and a diagonal clears on both axes. (Letting each pair pick
+        // the shallower axis oscillates and never settles.)
+        this._separate(n, byKey.get(`${n.col + 1},${n.row}`), 'x');
+        this._separate(n, byKey.get(`${n.col},${n.row + 1}`), 'y');
+        this._separate(n, byKey.get(`${n.col + 1},${n.row + 1}`), 'both');
+        this._separate(n, byKey.get(`${n.col + 1},${n.row - 1}`), 'both');
       }
     }
 
@@ -172,19 +187,22 @@ export class ForceField {
     }
   }
 
-  // Push two tiles apart along the axis of least overlap until at least
-  // MIN_GAP separates their (grown) boxes, splitting the move between them.
-  _separate(a, b) {
+  // If two tiles' (grown) boxes overlap, push them apart until MIN_GAP
+  // separates them, splitting the move. `axis` fixes the push direction
+  // ('x'/'y'); 'min' picks the shallower axis (used only for diagonals).
+  _separate(a, b, axis) {
     if (!a || !b) return;
     const ox = (b.x + b.dx) - (a.x + a.dx);
     const oy = (b.y + b.dy) - (a.y + a.dy);
     const overlapX = (a.w + b.w) / 2 + MIN_GAP - Math.abs(ox);
     const overlapY = (a.h + b.h) / 2 + MIN_GAP - Math.abs(oy);
-    if (overlapX <= 0 || overlapY <= 0) return;
-    if (overlapX < overlapY) {
+    if (overlapX <= 0 || overlapY <= 0) return; // not actually overlapping
+
+    if (axis === 'x' || (axis === 'both')) {
       const s = (Math.sign(ox || 1) * overlapX) / 2;
       a.dx -= s; b.dx += s;
-    } else {
+    }
+    if (axis === 'y' || (axis === 'both')) {
       const s = (Math.sign(oy || 1) * overlapY) / 2;
       a.dy -= s; b.dy += s;
     }

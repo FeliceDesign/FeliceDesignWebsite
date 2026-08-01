@@ -45,9 +45,14 @@ export const BASE_AR = CARD_W / CARD_H;
 // so a focused card only ever grows outward (revealing the cropped parts),
 // never shrinks a side. Then clamped to the viewport and to these multiples
 // of the base card so the ripple of pushed neighbours stays a few rings.
-// Kept a hair under 2× the grid pitch on purpose: two fully-grown cards two
-// slots apart then still can't reach each other, so keeping grid-adjacent
-// tiles apart is enough to keep every tile apart.
+// A focused card grows to roughly this multiple of the base card's *area*,
+// at its image's own aspect ratio — so a 3:2 image and a portrait both swell
+// to a similar overall size, rather than a 3:2 (already the grid ratio)
+// barely changing. FOCUS_GROW is a floor for very tall/wide images so they
+// still fully contain the base card. The max multiples keep the box a hair
+// under 2× the grid pitch, so two fully-grown cards two slots apart still
+// can't reach each other and keeping grid-adjacent tiles apart is enough.
+export const FOCUS_AREA = isTouch ? 1.8 : 2.0;
 export const FOCUS_GROW = 1.1;
 export const FOCUS_MAX_W = 2.1; // × CARD_W
 export const FOCUS_MAX_H = 2.2; // × CARD_H
