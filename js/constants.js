@@ -40,9 +40,11 @@ export const FIELD_RADIUS = Math.max(CELL_W, CELL_H) * 1.4;
 export const FIELD_SCALE = 0.16;
 
 // The aspect-morph only ramps in once a card is this centred under the
-// pointer, so at the hand-off point between two cards (where influence is
-// ~half) neither is mid-morph and the dominant card can swap without a jump.
-export const FOCUS_MORPH_START = 0.5;
+// pointer. With the influence radius below, no two cards' influence can both
+// reach this at once (even allowing for the smoothing lag), so only ever one
+// card morphs — and the hand-off between tiles happens where both are still
+// un-morphed, so there's no jump.
+export const FOCUS_MORPH_START = 0.6;
 
 // A focused card grows to roughly this multiple of the base card's *area*, at
 // its image's own aspect ratio — so every aspect ratio swells to a similar

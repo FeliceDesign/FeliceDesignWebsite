@@ -3,11 +3,17 @@
 // pointer position, so it flows smoothly instead of snapping on and off.
 //
 // Every nearby card puffs up a little by how close the pointer is — that's
-// the field. On top of that, the single nearest card (once the pointer is
-// well centred on it) morphs from its square grid box towards its image's
-// full aspect ratio. Reserving the aspect reveal for one card at a time, and
-// only ramping it in past the hand-off point, keeps the packing solvable and
-// lets the dominant card swap from one tile to the next without a jump.
+// the field. On top of that, a card that the pointer is well centred on
+// morphs from its square grid box towards its image's full aspect ratio. The
+// morph only ramps in past a threshold the geometry guarantees just one card
+// can cross at a time, so the reveal is always a single card and the packing
+// stays solvable.
+//
+// Each card's influence is low-pass filtered over time rather than read
+// straight from the raw distance, so the size eases instead of jittering with
+// every micro-movement of the map (which is what you feel on touch as the map
+// settles). The filter keeps running via self-scheduled frames until it has
+// come to rest.
 //
 // A light relaxation pass then nudges tiles apart so that, however much any
 // of them have grown, none ever overlap or touch.
@@ -16,9 +22,17 @@ import {
   FOCUS_AREA, FOCUS_GROW, FOCUS_MAX_W, FOCUS_MAX_H, FOCUS_LIFT, MIN_GAP, isTouch,
 } from './constants.js';
 
-// How far out tiles are still considered — the influence radius plus enough
-// rings for a fully-grown card's push to fade out.
-const GATHER = FIELD_RADIUS + Math.max(CARD_W * FOCUS_MAX_W, CARD_H * FOCUS_MAX_H) + 4 * Math.max(CELL_W, CELL_H);
+// How fast a card's smoothed influence chases its target each frame (lower =
+// smoother but laggier). Touch is smoothed harder since the map's settling
+// glide is the jittery input there.
+const SMOOTH = isTouch ? 0.16 : 0.3;
+
+// How far out tiles are still considered — the influence radius, the biggest
+// a card can grow, plus enough rings for its push to cascade fully to zero.
+// The deepest cascade is (max grown half-size + base half-size + gap - pitch)
+// spread over the per-gap slack, which on touch (small gap) is several rings;
+// the far tiles included here are cheap (they only ever act as obstacles).
+const GATHER = FIELD_RADIUS + Math.max(CARD_W * FOCUS_MAX_W, CARD_H * FOCUS_MAX_H) + 9 * Math.max(CELL_W, CELL_H);
 
 export class ForceField {
   constructor({ cards, world, isDragging }) {
@@ -80,11 +94,13 @@ export class ForceField {
     const wl = worldRect.left;
     const wt = worldRect.top;
 
-    // 1) Gather reachable cards with their influence; find the dominant one.
+    // 1) Gather reachable cards. Each card's raw target influence comes from
+    //    the pointer distance; its smoothed influence eases toward that.
     const nodes = [];
     const byKey = new Map();
     let primary = null;
     let primaryInfl = 0;
+    let easing = false;
 
     for (const card of this.cards) {
       if (card.style.visibility === 'hidden') continue;
@@ -94,66 +110,73 @@ export class ForceField {
       if (dist > GATHER) continue;
 
       const t = Math.max(0, 1 - dist / FIELD_RADIUS);
-      const infl = t * t;
+      const raw = t * t;
+      const prev = card._si || 0;
+      const infl = prev + (raw - prev) * SMOOTH;
+      card._si = infl;
+      if (Math.abs(raw - infl) > 0.002) easing = true;
+
       const node = {
         card, col: card._col, row: card._row, x: card._ox, y: card._oy,
-        infl, w: CARD_W, h: CARD_H, scale: 1, dom: false, dx: 0, dy: 0,
+        infl, d: dist, w: CARD_W, h: CARD_H, scale: 1, dom: false, dx: 0, dy: 0,
       };
       nodes.push(node);
       byKey.set(`${node.col},${node.row}`, node);
       if (infl > primaryInfl) { primaryInfl = infl; primary = node; }
     }
 
-    // 2) Size each node: everyone scales gently by influence; the dominant
-    //    card additionally morphs toward its full box, but only past the
-    //    hand-off point (so a swap between tiles doesn't pop).
+    // Relax nearest-the-pointer first so a big card's push cascades all the
+    // way outward within a single pass — otherwise a deep cascade (a tall tile
+    // on the small-gap touch grid) needs far more iterations to converge.
+    nodes.sort((a, b) => a.d - b.d);
+
+    // 2) Size each node from its own smoothed influence: everyone scales
+    //    gently; a card centred enough to cross the morph threshold also grows
+    //    toward its full aspect box. The threshold is set so only one card can
+    //    be morphing at a time.
     for (const n of nodes) {
-      if (n.infl <= 0) continue;
+      if (n.infl <= 0.001) continue;
       n.scale = 1 + FIELD_SCALE * n.infl;
       n.w = CARD_W * n.scale;
       n.h = CARD_H * n.scale;
-      if (n === primary) {
-        const morph = this._morph(n.infl);
-        if (morph > 0) {
-          const full = this._fullBox((n.card._work && n.card._work.aspect) || BASE_AR);
-          n.w += (full.w - n.w) * morph;
-          n.h += (full.h - n.h) * morph;
-          n.dom = true;
-        }
+      const morph = this._morph(n.infl);
+      if (morph > 0.02) {
+        const full = this._fullBox((n.card._work && n.card._work.aspect) || BASE_AR);
+        n.w += (full.w - n.w) * morph;
+        n.h += (full.h - n.h) * morph;
+        n.dom = true;
       }
     }
 
     // 3) Relax: push grid-neighbours apart until every pair keeps MIN_GAP.
     //    Fixed push direction per grid relationship keeps the cascade stable.
-    const iterations = 12 + Math.round(primaryInfl * 18);
+    const iterations = 10 + Math.round(primaryInfl * 14);
     for (let it = 0; it < iterations; it++) {
       for (const n of nodes) {
         this._separate(n, byKey.get(`${n.col + 1},${n.row}`), 'x');
         this._separate(n, byKey.get(`${n.col},${n.row + 1}`), 'y');
-        this._separate(n, byKey.get(`${n.col + 1},${n.row + 1}`), 'both');
-        this._separate(n, byKey.get(`${n.col + 1},${n.row - 1}`), 'both');
+        this._separate(n, byKey.get(`${n.col + 1},${n.row + 1}`), 'min');
+        this._separate(n, byKey.get(`${n.col + 1},${n.row - 1}`), 'min');
       }
     }
 
-    // 4) Apply. The dominant card resizes (growing from its centre); the rest
-    //    scale in place. Values are rounded to whole pixels to avoid shimmer.
+    // 4) Apply. A morphing card resizes (growing from its centre); the rest
+    //    scale in place. Sub-pixel values keep the motion smooth.
     const touched = new Set();
     for (const n of nodes) {
-      if (n.infl <= 0 && n.dx === 0 && n.dy === 0) continue;
-      const lift = Math.round(-FOCUS_LIFT * n.infl);
+      if (n.infl <= 0.002 && n.dx === 0 && n.dy === 0) continue;
+      const lift = -FOCUS_LIFT * n.infl;
       if (n.dom) {
-        const w = Math.round(n.w);
-        const h = Math.round(n.h);
-        const tx = Math.round(n.dx - (w - CARD_W) / 2);
-        const ty = Math.round(n.dy - (h - CARD_H) / 2) + lift;
-        n.card.style.width = `${w}px`;
-        n.card.style.height = `${h}px`;
-        n.card.style.transform = `translate(${tx}px, ${ty}px)`;
+        const tx = n.dx - (n.w - CARD_W) / 2;
+        const ty = n.dy - (n.h - CARD_H) / 2 + lift;
+        n.card.style.width = `${n.w.toFixed(2)}px`;
+        n.card.style.height = `${n.h.toFixed(2)}px`;
+        n.card.style.transform = `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)`;
       } else {
         n.card.style.width = `${CARD_W}px`;
         n.card.style.height = `${CARD_H}px`;
         n.card.style.transform =
-          `translate(${Math.round(n.dx)}px, ${Math.round(n.dy) + lift}px) scale(${n.scale.toFixed(3)})`;
+          `translate(${n.dx.toFixed(2)}px, ${(n.dy + lift).toFixed(2)}px) scale(${n.scale.toFixed(3)})`;
       }
       n.card.style.zIndex = String(5 + Math.round(n.infl * 40));
       n.card.classList.toggle('focused', n === primary && primaryInfl > 0.45);
@@ -171,6 +194,10 @@ export class ForceField {
     } else {
       this.root.style.setProperty('--card-a', '0');
     }
+
+    // Keep filtering until the smoothed influences have caught up, even if no
+    // pointer/map event fires in the meantime.
+    if (easing) { this._raf = true; requestAnimationFrame(() => this.apply()); }
   }
 
   // Smoothstep from FOCUS_MORPH_START..1 -> 0..1: no morph until the pointer
@@ -187,17 +214,27 @@ export class ForceField {
     const overlapX = (a.w + b.w) / 2 + MIN_GAP - Math.abs(ox);
     const overlapY = (a.h + b.h) / 2 + MIN_GAP - Math.abs(oy);
     if (overlapX <= 0 || overlapY <= 0) return;
-    if (axis === 'x' || axis === 'both') {
+
+    let ax = axis;
+    if (axis === 'min') {
+      // Decide the push axis from the STATIC grid offsets (no displacement),
+      // so it's fixed for the whole frame and can't flip between iterations
+      // (which would oscillate) — the shallower one clears with least motion.
+      const soX = (a.w + b.w) / 2 + MIN_GAP - Math.abs(b.x - a.x);
+      const soY = (a.h + b.h) / 2 + MIN_GAP - Math.abs(b.y - a.y);
+      ax = soX < soY ? 'x' : 'y';
+    }
+    if (ax === 'x') {
       const s = (Math.sign(ox || 1) * overlapX) / 2;
       a.dx -= s; b.dx += s;
-    }
-    if (axis === 'y' || axis === 'both') {
+    } else {
       const s = (Math.sign(oy || 1) * overlapY) / 2;
       a.dy -= s; b.dy += s;
     }
   }
 
   _reset(card) {
+    card._si = 0;
     card.style.width = `${CARD_W}px`;
     card.style.height = `${CARD_H}px`;
     card.style.transform = '';

@@ -6,13 +6,11 @@
   position: absolute;
   overflow: hidden;
   background: var(--panel);
-  /* The field drives size + offset live from the cursor every frame; these
-     short transitions just take the edge off the per-frame steps and ease the
-     hand-off when the dominant card swaps. Keeping them short avoids the
-     expansion visibly lagging the pointer. */
-  transition: width .16s linear, height .16s linear,
-    transform .16s linear, box-shadow .25s var(--ease),
-    opacity .5s var(--ease), filter .35s var(--ease);
+  /* Size + offset are NOT transitioned: the field already drives them live
+     every frame from a time-smoothed influence, so they're smooth on their
+     own. A CSS transition here would only lag behind that and leave tiles
+     stuck mid-move. Only the cosmetic fades (shadow/brightness) transition. */
+  transition: box-shadow .25s var(--ease), opacity .5s var(--ease), filter .35s var(--ease);
   will-change: transform;
   /* Own compositor layer (with the JS-rounded transforms) kills the faint
      seam that can show along a scaling image's edge. */
