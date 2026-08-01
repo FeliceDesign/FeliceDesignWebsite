@@ -28,7 +28,7 @@ const hint = document.getElementById('hint');
 if (isTouch) hint.textContent = 'Ziehen — die Mitte ist im Fokus';
 
 const map = new InfiniteMap({ world, viewport, works: worksByFilter.all, parallaxEls });
-const field = new ForceField({ cards: map.cards, world, isDragging: () => map.isDragging() });
+const field = new ForceField({ cards: map.cards, map, isDragging: () => map.isDragging() });
 
 // Desktop drops the field while panning; otherwise the field re-runs every
 // frame — including while the map glides — so it stays live and continuous.

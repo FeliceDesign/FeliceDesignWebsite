@@ -27,17 +27,17 @@ import {
 // glide is the jittery input there.
 const SMOOTH = isTouch ? 0.16 : 0.3;
 
-// How far out tiles are still considered — the influence radius, the biggest
-// a card can grow, plus enough rings for its push to cascade fully to zero.
-// The deepest cascade is (max grown half-size + base half-size + gap - pitch)
-// spread over the per-gap slack, which on touch (small gap) is several rings;
-// the far tiles included here are cheap (they only ever act as obstacles).
-const GATHER = FIELD_RADIUS + Math.max(CARD_W * FOCUS_MAX_W, CARD_H * FOCUS_MAX_H) + 9 * Math.max(CELL_W, CELL_H);
+// How far out tiles are considered each frame — the influence radius, half
+// the biggest a card can grow, plus a few rings for its push to cascade to
+// zero. With the wide gaps here the per-gap slack is large, so that cascade
+// is barely a ring; keeping this tight is what keeps the node count (and the
+// per-frame work) small.
+const GATHER = FIELD_RADIUS + Math.max(CARD_W * FOCUS_MAX_W, CARD_H * FOCUS_MAX_H) / 2 + 2 * Math.max(CELL_W, CELL_H);
 
 export class ForceField {
-  constructor({ cards, world, isDragging }) {
+  constructor({ cards, map, isDragging }) {
     this.cards = cards;
-    this.world = world;
+    this.map = map; // read the world's live translate without forcing layout
     this.isDragging = isDragging;
     this.root = document.documentElement;
     this.mX = -9999; this.mY = -9999;
@@ -90,9 +90,11 @@ export class ForceField {
   }
 
   _field() {
-    const worldRect = this.world.getBoundingClientRect();
-    const wl = worldRect.left;
-    const wt = worldRect.top;
+    // #world is translate(posX, posY) inside a fixed, top-left viewport, so
+    // its on-screen origin is exactly the map's position — no getBounding
+    // ClientRect (which would force a synchronous layout every frame).
+    const wl = this.map.posX;
+    const wt = this.map.posY;
 
     // 1) Gather reachable cards. Each card's raw target influence comes from
     //    the pointer distance; its smoothed influence eases toward that.
@@ -125,9 +127,18 @@ export class ForceField {
       if (infl > primaryInfl) { primaryInfl = infl; primary = node; }
     }
 
-    // Relax nearest-the-pointer first so a big card's push cascades all the
-    // way outward within a single pass — otherwise a deep cascade (a tall tile
-    // on the small-gap touch grid) needs far more iterations to converge.
+    // Resolve each node's grid neighbours to direct object references ONCE
+    // (not once per relaxation iteration) — building string map-keys in the
+    // inner loop was the bulk of the per-frame cost.
+    for (const n of nodes) {
+      n.nR = byKey.get(`${n.col + 1},${n.row}`);
+      n.nD = byKey.get(`${n.col},${n.row + 1}`);
+      n.nDR = byKey.get(`${n.col + 1},${n.row + 1}`);
+      n.nUR = byKey.get(`${n.col + 1},${n.row - 1}`);
+    }
+
+    // Relax nearest-the-pointer first so a big card's push cascades outward
+    // within a single pass.
     nodes.sort((a, b) => a.d - b.d);
 
     // 2) Size each node from its own smoothed influence: everyone scales
@@ -151,13 +162,13 @@ export class ForceField {
 
     // 3) Relax: push grid-neighbours apart until every pair keeps MIN_GAP.
     //    Fixed push direction per grid relationship keeps the cascade stable.
-    const iterations = 10 + Math.round(primaryInfl * 14);
+    const iterations = 8 + Math.round(primaryInfl * 8);
     for (let it = 0; it < iterations; it++) {
       for (const n of nodes) {
-        this._separate(n, byKey.get(`${n.col + 1},${n.row}`), 'x');
-        this._separate(n, byKey.get(`${n.col},${n.row + 1}`), 'y');
-        this._separate(n, byKey.get(`${n.col + 1},${n.row + 1}`), 'min');
-        this._separate(n, byKey.get(`${n.col + 1},${n.row - 1}`), 'min');
+        this._separate(n, n.nR, 'x');
+        this._separate(n, n.nD, 'y');
+        this._separate(n, n.nDR, 'min');
+        this._separate(n, n.nUR, 'min');
       }
     }
 

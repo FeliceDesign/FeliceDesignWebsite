@@ -11,11 +11,11 @@
      own. A CSS transition here would only lag behind that and leave tiles
      stuck mid-move. Only the cosmetic fades (shadow/brightness) transition. */
   transition: box-shadow .25s var(--ease), opacity .5s var(--ease), filter .35s var(--ease);
-  will-change: transform;
-  /* Own compositor layer (with the JS-rounded transforms) kills the faint
-     seam that can show along a scaling image's edge. */
-  backface-visibility: hidden;
-  /* No border-radius on purpose: sharp, minimal look. */
+  /* No always-on will-change / backface-visibility: those would promote every
+     tile (hundreds) to its own GPU layer, and with rounded corners each such
+     layer needs a costly rounded-clip mask. The field promotes only the few
+     cards it's animating (js/forceField.js) and clears it when they settle. */
+  /* Rounded corners at rest are set inline from TILE_RADIUS. */
 }
 /* While actively dragging: snap back to the grid instead of easing, so
    flinging the map never leaves a card mid-expansion. */
@@ -33,7 +33,6 @@ body.dragging .card { transition: opacity .5s var(--ease), filter .5s var(--ease
   /* Always overfill by a hair so a subpixel rounding gap never bares a light
      edge along the image while it scales. */
   transform: scale(1.03);
-  backface-visibility: hidden;
   transition: filter .5s var(--ease), transform .6s var(--ease);
   pointer-events: none;
 }
