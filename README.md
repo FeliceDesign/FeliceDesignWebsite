@@ -20,8 +20,9 @@ css/
   cards.css               the map itself + the work cards on it
   detail.css              the flip / detail overlay
 js/
-  constants.js          layout + behaviour tuning (sizes, speeds, expansion)
-  grid.js                 picks a COLS x ROWS shape for a given work count
+  presets.js            all tuning numbers, grouped into switchable presets
+  constants.js            picks the desktop/touch values out of the preset
+  grid.js                   picks a COLS x ROWS shape for a given work count
   works.js                  the portfolio pieces shown on the map
   aspect.js                   measures each work's true aspect ratio
   infiniteMap.js                builds the endless grid, handles drag + inertia
@@ -38,6 +39,30 @@ assets/
   wave-pattern.png       background texture
   photos/                optimized copies of the work photos (see below)
 ```
+
+## Presets (UI experiments, reversible)
+
+Every tunable number — card sizes, the focus field, the glow radii, the
+navbar scale, the edge blur and vignette — lives in `js/presets.js`, not
+scattered across the code. Two presets exist:
+
+| preset | what it is |
+| --- | --- |
+| `baseline` | the look on `main` — the safe fallback |
+| `test01` | wide cursor glow, latched reveal, roomier neighbours, double navbar, heavier edges |
+
+Switching between them:
+
+* **for one visit** — `?preset=baseline` in the URL
+* **from the browser console** — `__preset('baseline')` (remembered across
+  reloads; `__preset(null)` forgets it, `__preset()` lists them)
+* **permanently** — change `DEFAULT_PRESET` at the top of `js/presets.js`
+
+A new experiment is a new entry in `PRESETS`: it only spells out the values
+it changes, everything else is inherited from `baseline`. The styling half of
+a preset is pushed onto `:root` as CSS custom properties at boot; every
+stylesheet repeats the baseline number as the `var()` fallback, so the site
+still renders like `baseline` even if the JS never runs.
 
 ## Adding a work
 

@@ -18,14 +18,16 @@
 // A light relaxation pass then nudges tiles apart so that, however much any
 // of them have grown, none ever overlap or touch.
 import {
-  CARD_W, CARD_H, CELL_W, CELL_H, BASE_AR, TILE_RADIUS, FIELD_RADIUS, FIELD_SCALE, FOCUS_MORPH_START,
-  FOCUS_AREA, FOCUS_GROW, FOCUS_MAX_W, FOCUS_MAX_H, FOCUS_LIFT, MIN_GAP, isTouch,
+  CARD_W, CARD_H, CELL_W, CELL_H, BASE_AR, TILE_RADIUS, FIELD_RADIUS, FIELD_SCALE, FIELD_SMOOTH,
+  FOCUS_MORPH_START, FOCUS_LATCH, FOCUS_LATCH_SPEED, FOCUS_LATCH_MARGIN,
+  FOCUS_AREA, FOCUS_GROW, FOCUS_MAX_W, FOCUS_MAX_H, FOCUS_LIFT,
+  MIN_GAP, APPROACH_GAP, FOCUS_GAP, isTouch,
 } from './constants.js';
 
 // How fast a card's smoothed influence chases its target each frame (lower =
 // smoother but laggier). Touch is smoothed harder since the map's settling
 // glide is the jittery input there.
-const SMOOTH = isTouch ? 0.16 : 0.3;
+const SMOOTH = FIELD_SMOOTH;
 
 // How far out tiles are considered each frame — the influence radius, half
 // the biggest a card can grow, plus a few rings for its push to cascade to
@@ -43,6 +45,9 @@ export class ForceField {
     this.mX = -9999; this.mY = -9999;
     this._raf = false;
     this._touched = new Set();
+    // The card the pointer is currently ON (not merely near). While one is
+    // held its reveal stays at full, so the shape can't shift under the hand.
+    this._latch = null;
 
     window.addEventListener('mousemove', (e) => {
       this.mX = e.clientX; this.mY = e.clientY;
@@ -69,6 +74,19 @@ export class ForceField {
     const maxH = Math.min(CARD_H * FOCUS_MAX_H, window.innerHeight * (isTouch ? 0.62 : 0.84));
     const fit = Math.min(1, maxW / w, maxH / h);
     return { w: w * fit, h: h * fit };
+  }
+
+  // Is the pointer on this card as it is currently drawn? Measured from what
+  // the field applied last frame — the field is the only thing that moves or
+  // resizes cards, so this needs no layout read. The box is never smaller
+  // than the resting card, so a card can't shrink out from under the pointer
+  // and start flickering.
+  _onCard(card, wl, wt, margin) {
+    const w = Math.max(card._lw || 0, CARD_W) / 2 + margin;
+    const h = Math.max(card._lh || 0, CARD_H) / 2 + margin;
+    const cx = wl + card._ox + CARD_W / 2 + (card._ldx || 0);
+    const cy = wt + card._oy + CARD_H / 2 + (card._ldy || 0);
+    return Math.abs(this.mX - cx) <= w && Math.abs(this.mY - cy) <= h;
   }
 
   apply() {
@@ -120,7 +138,7 @@ export class ForceField {
 
       const node = {
         card, col: card._col, row: card._row, x: card._ox, y: card._oy,
-        infl, d: dist, w: CARD_W, h: CARD_H, scale: 1, morph: 0, dom: false, dx: 0, dy: 0,
+        infl, d: dist, w: CARD_W, h: CARD_H, scale: 1, morph: 0, dom: false, dx: 0, dy: 0, gapBias: 0,
       };
       nodes.push(node);
       byKey.set(`${node.col},${node.row}`, node);
@@ -141,16 +159,39 @@ export class ForceField {
     // within a single pass.
     nodes.sort((a, b) => a.d - b.d);
 
+    // Latch: whichever card the pointer is physically on owns the reveal, and
+    // keeps it until the pointer leaves that card — so once you're on an
+    // image its aspect ratio stops changing. Each card eases its own progress,
+    // so moving from one card to the next crossfades instead of snapping.
+    if (FOCUS_LATCH) {
+      const held = this._latch;
+      const keep = held && held.isConnected && held.style.visibility !== 'hidden'
+        && this._onCard(held, wl, wt, FOCUS_LATCH_MARGIN);
+      if (!keep) {
+        this._latch = null;
+        for (const n of nodes) { // sorted, so this is the nearest one
+          if (this._onCard(n.card, wl, wt, 0)) { this._latch = n.card; break; }
+        }
+      }
+      for (const n of nodes) {
+        const target = n.card === this._latch ? 1 : 0;
+        const from = n.card._mp || 0;
+        const next = from + (target - from) * FOCUS_LATCH_SPEED;
+        n.card._mp = Math.abs(target - next) < 0.002 ? target : next;
+        if (n.card._mp !== target) easing = true;
+      }
+    }
+
     // 2) Size each node from its own smoothed influence: everyone scales
     //    gently; a card centred enough to cross the morph threshold also grows
     //    toward its full aspect box. The threshold is set so only one card can
     //    be morphing at a time.
     for (const n of nodes) {
-      if (n.infl <= 0.001) continue;
+      const morph = FOCUS_LATCH ? (n.card._mp || 0) : this._morph(n.infl);
+      if (n.infl <= 0.001 && morph <= 0.02) continue;
       n.scale = 1 + FIELD_SCALE * n.infl;
       n.w = CARD_W * n.scale;
       n.h = CARD_H * n.scale;
-      const morph = this._morph(n.infl);
       if (morph > 0.02) {
         const full = this._fullBox((n.card._work && n.card._work.aspect) || BASE_AR);
         n.w += (full.w - n.w) * morph;
@@ -158,6 +199,10 @@ export class ForceField {
         n.morph = morph;
         n.dom = true;
       }
+      // Extra clearance this card asks its neighbours for: some of it fades
+      // in with mere proximity (so they start making room early), the rest
+      // belongs to the card being revealed.
+      n.gapBias = APPROACH_GAP * n.infl + FOCUS_GAP * n.morph;
     }
 
     // 3) Relax: push grid-neighbours apart until every pair keeps MIN_GAP.
@@ -175,8 +220,10 @@ export class ForceField {
     // 4) Apply. A morphing card resizes (growing from its centre); the rest
     //    scale in place. Sub-pixel values keep the motion smooth.
     const touched = new Set();
+    let latchNode = null;
     for (const n of nodes) {
-      if (n.infl <= 0.002 && n.dx === 0 && n.dy === 0) continue;
+      if (n.card === this._latch) latchNode = n;
+      if (n.infl <= 0.002 && n.morph === 0 && n.dx === 0 && n.dy === 0) continue;
       const lift = -FOCUS_LIFT * n.infl;
       if (n.dom) {
         const tx = n.dx - (n.w - CARD_W) / 2;
@@ -193,18 +240,29 @@ export class ForceField {
       // Corners ease from rounded (rest) to sharp as the card reveals itself.
       n.card.style.borderRadius = `${(TILE_RADIUS * (1 - n.morph)).toFixed(1)}px`;
       n.card.style.zIndex = String(5 + Math.round(n.infl * 40));
-      n.card.classList.toggle('focused', n === primary && primaryInfl > 0.45);
+      n.card.classList.toggle('focused', FOCUS_LATCH
+        ? n.card === this._latch
+        : (n === primary && primaryInfl > 0.45));
+      // Remember the box as drawn, so next frame can tell whether the pointer
+      // is on this card without touching layout.
+      n.card._lw = n.dom ? n.w : CARD_W * n.scale;
+      n.card._lh = n.dom ? n.h : CARD_H * n.scale;
+      n.card._ldx = n.dx;
+      n.card._ldy = n.dy + lift;
       touched.add(n.card);
     }
     for (const card of this._touched) if (!touched.has(card)) this._reset(card);
     this._touched = touched;
 
-    if (primary && primaryInfl > 0.05) {
-      const cx = wl + primary.x + CARD_W / 2 + primary.dx;
-      const cy = wt + primary.y + CARD_H / 2 + primary.dy - FOCUS_LIFT * primary.infl;
+    // The card glow sits on whatever is revealed, falling back to the nearest
+    // card when the pointer is between them.
+    const glow = latchNode || primary;
+    if (glow && (glow === latchNode || primaryInfl > 0.05)) {
+      const cx = wl + glow.x + CARD_W / 2 + glow.dx;
+      const cy = wt + glow.y + CARD_H / 2 + glow.dy - FOCUS_LIFT * glow.infl;
       this.root.style.setProperty('--card-x', `${cx.toFixed(0)}px`);
       this.root.style.setProperty('--card-y', `${cy.toFixed(0)}px`);
-      this.root.style.setProperty('--card-a', primaryInfl.toFixed(3));
+      this.root.style.setProperty('--card-a', Math.max(glow.infl, glow.morph).toFixed(3));
     } else {
       this.root.style.setProperty('--card-a', '0');
     }
@@ -223,10 +281,13 @@ export class ForceField {
 
   _separate(a, b, axis) {
     if (!a || !b) return;
+    // The pair's clearance is the base gap plus whatever extra the more
+    // demanding of the two asks for (proximity + reveal).
+    const gap = MIN_GAP + Math.max(a.gapBias, b.gapBias);
     const ox = (b.x + b.dx) - (a.x + a.dx);
     const oy = (b.y + b.dy) - (a.y + a.dy);
-    const overlapX = (a.w + b.w) / 2 + MIN_GAP - Math.abs(ox);
-    const overlapY = (a.h + b.h) / 2 + MIN_GAP - Math.abs(oy);
+    const overlapX = (a.w + b.w) / 2 + gap - Math.abs(ox);
+    const overlapY = (a.h + b.h) / 2 + gap - Math.abs(oy);
     if (overlapX <= 0 || overlapY <= 0) return;
 
     let ax = axis;
@@ -234,8 +295,8 @@ export class ForceField {
       // Decide the push axis from the STATIC grid offsets (no displacement),
       // so it's fixed for the whole frame and can't flip between iterations
       // (which would oscillate) — the shallower one clears with least motion.
-      const soX = (a.w + b.w) / 2 + MIN_GAP - Math.abs(b.x - a.x);
-      const soY = (a.h + b.h) / 2 + MIN_GAP - Math.abs(b.y - a.y);
+      const soX = (a.w + b.w) / 2 + gap - Math.abs(b.x - a.x);
+      const soY = (a.h + b.h) / 2 + gap - Math.abs(b.y - a.y);
       ax = soX < soY ? 'x' : 'y';
     }
     if (ax === 'x') {
@@ -249,6 +310,9 @@ export class ForceField {
 
   _reset(card) {
     card._si = 0;
+    card._mp = 0;
+    card._lw = CARD_W; card._lh = CARD_H;
+    card._ldx = 0; card._ldy = 0;
     card.style.width = `${CARD_W}px`;
     card.style.height = `${CARD_H}px`;
     card.style.transform = '';
@@ -260,6 +324,7 @@ export class ForceField {
   clear() {
     for (const card of this._touched) this._reset(card);
     this._touched = new Set();
+    this._latch = null;
     this.root.style.setProperty('--glow-a', '0');
     this.root.style.setProperty('--card-a', '0');
   }

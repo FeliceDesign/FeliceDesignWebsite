@@ -1,6 +1,10 @@
 // Entry point: wires the map, hover force field, category tabs and detail
 // view together. Each piece lives in its own module and only talks to the
 // others through the small set of callbacks assigned here.
+//
+// All tuning numbers come from the active preset in js/presets.js — switch
+// it there, via ?preset=…, or with __preset('baseline') in the console.
+import { applyPresetStyles, installPresetSwitcher } from './presets.js';
 import { isTouch } from './constants.js';
 import { WORKS } from './works.js';
 import { measureAspects } from './aspect.js';
@@ -8,6 +12,10 @@ import { InfiniteMap } from './infiniteMap.js';
 import { ForceField } from './forceField.js';
 import { initTabs } from './tabs.js';
 import { DetailView } from './detailView.js';
+
+// Push the active preset's styling values onto :root before anything paints.
+applyPresetStyles();
+installPresetSwitcher();
 
 // Learn each work's true aspect ratio so cards can expand to their full,
 // uncropped shape on hover and in the detail view.

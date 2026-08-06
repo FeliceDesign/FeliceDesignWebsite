@@ -10,6 +10,11 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
 
+  /* The active preset (js/presets.js) writes its styling values onto :root at
+     boot: the glow radii, --nav-scale-*, --edge-blur, --bm-* and --vig-*.
+     Every rule that reads them repeats the baseline number as its var()
+     fallback, so the stylesheets stand on their own without the JS. */
+
   /* Updated every frame by js/forceField.js to steer the glow layers below. */
   --glow-x: 50vw;
   --glow-y: 50vh;

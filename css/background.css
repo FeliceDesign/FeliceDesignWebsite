@@ -13,35 +13,41 @@
 #waves { opacity: 0.025; }
 /* Glow layer: brighter, but only visible around the two glow centers
    (cursor + focused card), controlled by two radial masks that
-   js/forceField.js updates every frame via CSS custom properties. */
+   js/forceField.js updates every frame via CSS custom properties.
+   The radii/strengths come from the active preset (js/presets.js); the
+   fallbacks below are the baseline values. */
 #waves-glow {
-  opacity: 0.4;
-  -webkit-mask:
-    radial-gradient(circle 95px at var(--glow-x) var(--glow-y), rgba(0,0,0,calc(var(--glow-a)*0.4)) 0%, transparent 62%),
-    radial-gradient(circle 150px at var(--card-x) var(--card-y), rgba(0,0,0,calc(var(--card-a)*0.38)) 0%, transparent 66%);
+  opacity: var(--glow-layer-o, 0.4);
+  --glow-mask:
+    radial-gradient(circle var(--glow-r, 95px) at var(--glow-x) var(--glow-y),
+      rgba(0,0,0,calc(var(--glow-a) * var(--glow-strength, 0.4))) 0%, transparent var(--glow-fade, 62%)),
+    radial-gradient(circle var(--card-r, 150px) at var(--card-x) var(--card-y),
+      rgba(0,0,0,calc(var(--card-a) * var(--card-strength, 0.38))) 0%, transparent var(--card-fade, 66%));
+  -webkit-mask: var(--glow-mask);
   -webkit-mask-composite: source-over;
-  mask:
-    radial-gradient(circle 95px at var(--glow-x) var(--glow-y), rgba(0,0,0,calc(var(--glow-a)*0.4)) 0%, transparent 62%),
-    radial-gradient(circle 150px at var(--card-x) var(--card-y), rgba(0,0,0,calc(var(--card-a)*0.38)) 0%, transparent 66%);
+  mask: var(--glow-mask);
   mask-composite: add;
 }
 
 /* Vignette: darkens edges, blur-frame softens the outermost ring. */
 #vignette {
   position: fixed; inset: 0; z-index: 50; pointer-events: none;
-  background: radial-gradient(ellipse 80% 78% at 50% 50%,
-    transparent 40%,
-    rgba(12,13,15,0.35) 62%,
-    rgba(12,13,15,0.82) 82%,
-    rgba(12,13,15,0.98) 100%);
+  background: radial-gradient(ellipse var(--vig-x, 80%) var(--vig-y, 78%) at 50% 50%,
+    transparent var(--vig-clear, 40%),
+    rgba(12,13,15,var(--vig-a-mid, 0.35)) var(--vig-mid, 62%),
+    rgba(12,13,15,var(--vig-a-dark, 0.82)) var(--vig-dark, 82%),
+    rgba(12,13,15,var(--vig-a-edge, 0.98)) 100%);
 }
 #blur-frame {
   position: fixed; inset: 0; z-index: 49; pointer-events: none;
-  backdrop-filter: blur(7px);
-  -webkit-mask: radial-gradient(ellipse 78% 76% at 50% 50%,
-    transparent 46%, rgba(0,0,0,0.4) 66%, #000 84%);
-  mask: radial-gradient(ellipse 78% 76% at 50% 50%,
-    transparent 46%, rgba(0,0,0,0.4) 66%, #000 84%);
+  -webkit-backdrop-filter: blur(var(--edge-blur, 7px));
+  backdrop-filter: blur(var(--edge-blur, 7px));
+  --frame-mask: radial-gradient(ellipse var(--bm-x, 78%) var(--bm-y, 76%) at 50% 50%,
+    transparent var(--bm-clear, 46%),
+    rgba(0,0,0,var(--bm-a, 0.4)) var(--bm-mid, 66%),
+    #000 var(--bm-solid, 84%));
+  -webkit-mask: var(--frame-mask);
+  mask: var(--frame-mask);
 }
 #grain {
   position: fixed; inset: 0; z-index: 51; pointer-events: none;
