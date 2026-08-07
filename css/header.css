@@ -25,22 +25,25 @@
   display: flex; gap: calc(clamp(14px,2.4vw,32px) * var(--nav-scale, 1)); align-items: center;
   pointer-events: auto; flex-wrap: nowrap;
 }
+/* Uppercase, and the active tab is marked by weight alone — no underline. */
 .tab {
   background: none; border: none; color: var(--ink); white-space: nowrap;
   font-family: 'Space Grotesk', sans-serif;
-  font-size: calc(0.8rem * var(--nav-scale, 1)); letter-spacing: 0.08em;
-  cursor: pointer; padding: calc(4px * var(--nav-scale, 1)) 0; position: relative; opacity: 0.5;
-  transition: opacity .3s var(--ease);
+  font-size: calc(0.8rem * var(--nav-scale, 1));
+  text-transform: uppercase; letter-spacing: 0.14em; font-weight: 400;
+  cursor: pointer; padding: calc(4px * var(--nav-scale, 1)) 0; position: relative; opacity: 0.45;
+  transition: opacity .3s var(--ease), font-weight .3s var(--ease);
 }
+/* Bold text is wider than regular, so every tab reserves the width it would
+   have when active. Without this the row shuffles sideways on every switch.
+   The copy is zero-height and hidden, so it only ever contributes width. */
 .tab::after {
-  content: ""; position: absolute; left: 0; right: 0;
-  bottom: calc(-2px * var(--nav-scale, 1)); height: max(1px, calc(1px * var(--nav-scale, 1)));
-  background: var(--ink); transform: scaleX(0); transform-origin: center;
-  transition: transform .3s var(--ease);
+  content: attr(data-label);
+  display: block; height: 0; overflow: hidden;
+  font-weight: 700; visibility: hidden; pointer-events: none;
 }
-.tab:hover { opacity: 0.85; }
-.tab.active { opacity: 1; }
-.tab.active::after { transform: scaleX(1); }
+.tab:hover { opacity: 0.8; }
+.tab.active { opacity: 1; font-weight: 700; }
 
 .hint {
   bottom: clamp(24px,4vw,42px); left: 50%; transform: translateX(-50%);

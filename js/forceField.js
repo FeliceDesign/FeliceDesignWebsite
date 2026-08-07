@@ -51,11 +51,22 @@ export class ForceField {
 
     window.addEventListener('mousemove', (e) => {
       this.mX = e.clientX; this.mY = e.clientY;
-      if (!this._raf) { this._raf = true; requestAnimationFrame(() => this.apply()); }
+      this.apply();
     });
-    window.addEventListener('mouseup', () => requestAnimationFrame(() => this.apply()));
+    window.addEventListener('mouseup', () => this.apply());
 
-    if (isTouch) requestAnimationFrame(() => this.apply());
+    if (isTouch) this.apply();
+  }
+
+  // Ask for a field pass. Coalesced to exactly one per animation frame no
+  // matter how many callers ask — the pointer, the map's glide ticks and the
+  // field's own easing all want one in the same frame, and stepping the
+  // smoothing filter a variable number of times per frame is what made
+  // settling cards stutter instead of easing evenly.
+  apply() {
+    if (this._raf) return;
+    this._raf = true;
+    requestAnimationFrame(() => this._pass());
   }
 
   // The box a card grows to when fully focused, at its image's aspect ratio:
@@ -89,7 +100,7 @@ export class ForceField {
     return Math.abs(this.mX - cx) <= w && Math.abs(this.mY - cy) <= h;
   }
 
-  apply() {
+  _pass() {
     this._raf = false;
 
     if (isTouch) {
@@ -225,21 +236,27 @@ export class ForceField {
       if (n.card === this._latch) latchNode = n;
       if (n.infl <= 0.002 && n.morph === 0 && n.dx === 0 && n.dy === 0) continue;
       const lift = -FOCUS_LIFT * n.infl;
+      // translate3d, and will-change while it moves, put the card on its own
+      // compositor layer: the offsets below are fractional, and an unpromoted
+      // layer would round them to whole device pixels, which is what makes a
+      // settling card look like it's ticking across a grid.
+      if (n.card.style.willChange !== 'transform') n.card.style.willChange = 'transform';
       if (n.dom) {
         const tx = n.dx - (n.w - CARD_W) / 2;
         const ty = n.dy - (n.h - CARD_H) / 2 + lift;
         n.card.style.width = `${n.w.toFixed(2)}px`;
         n.card.style.height = `${n.h.toFixed(2)}px`;
-        n.card.style.transform = `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)`;
+        n.card.style.transform = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0)`;
       } else {
         n.card.style.width = `${CARD_W}px`;
         n.card.style.height = `${CARD_H}px`;
         n.card.style.transform =
-          `translate(${n.dx.toFixed(2)}px, ${(n.dy + lift).toFixed(2)}px) scale(${n.scale.toFixed(3)})`;
+          `translate3d(${n.dx.toFixed(2)}px, ${(n.dy + lift).toFixed(2)}px, 0) scale(${n.scale.toFixed(3)})`;
       }
       // Corners ease from rounded (rest) to sharp as the card reveals itself.
       n.card.style.borderRadius = `${(TILE_RADIUS * (1 - n.morph)).toFixed(1)}px`;
-      n.card.style.zIndex = String(5 + Math.round(n.infl * 40));
+      const z = String(5 + Math.round(n.infl * 40));
+      if (n.card.style.zIndex !== z) n.card.style.zIndex = z; // restacking is a repaint
       n.card.classList.toggle('focused', FOCUS_LATCH
         ? n.card === this._latch
         : (n === primary && primaryInfl > 0.45));
@@ -260,8 +277,8 @@ export class ForceField {
     if (glow && (glow === latchNode || primaryInfl > 0.05)) {
       const cx = wl + glow.x + CARD_W / 2 + glow.dx;
       const cy = wt + glow.y + CARD_H / 2 + glow.dy - FOCUS_LIFT * glow.infl;
-      this.root.style.setProperty('--card-x', `${cx.toFixed(0)}px`);
-      this.root.style.setProperty('--card-y', `${cy.toFixed(0)}px`);
+      this.root.style.setProperty('--card-x', `${cx.toFixed(1)}px`);
+      this.root.style.setProperty('--card-y', `${cy.toFixed(1)}px`);
       this.root.style.setProperty('--card-a', Math.max(glow.infl, glow.morph).toFixed(3));
     } else {
       this.root.style.setProperty('--card-a', '0');
@@ -269,7 +286,7 @@ export class ForceField {
 
     // Keep filtering until the smoothed influences have caught up, even if no
     // pointer/map event fires in the meantime.
-    if (easing) { this._raf = true; requestAnimationFrame(() => this.apply()); }
+    if (easing) this.apply();
   }
 
   // Smoothstep from FOCUS_MORPH_START..1 -> 0..1: no morph until the pointer
@@ -318,6 +335,7 @@ export class ForceField {
     card.style.transform = '';
     card.style.borderRadius = `${TILE_RADIUS}px`;
     card.style.zIndex = '';
+    card.style.willChange = ''; // back to rest: drop the layer again
     card.classList.remove('focused');
   }
 

@@ -41,7 +41,7 @@ export class InfiniteMap {
     this._moving = false;
 
     this.velX = 0; this.velY = 0;
-    this.dragging = false; this.moved = false;
+    this.dragging = false; this.moved = false; this.travel = 0;
     this.lastX = 0; this.lastY = 0;
     // Raw accumulator WITHOUT wrapping, for continuous parallax
     // (posX/posY jump periodically, this doesn't).
@@ -52,8 +52,11 @@ export class InfiniteMap {
     this._runInertia();
   }
 
+  // A held button is not yet a drag. The field only stands down once the
+  // pointer has actually travelled, so pressing to open a card leaves the
+  // hovered card expanded and the detail view can grow straight out of it.
   isDragging() {
-    return this.dragging;
+    return this.dragging && this.moved;
   }
 
 
@@ -157,9 +160,8 @@ export class InfiniteMap {
 
   _bindPointerEvents() {
     const down = (e) => {
-      this.dragging = true; this.moved = false;
+      this.dragging = true; this.moved = false; this.travel = 0;
       document.body.classList.add('dragging');
-      if (!isTouch && this.onDragStart) this.onDragStart(); // desktop: drop the zoom while dragging
       const p = this._point(e);
       this.lastX = p.x; this.lastY = p.y;
       this.velX = this.velY = 0;
@@ -169,7 +171,13 @@ export class InfiniteMap {
       const p = this._point(e);
       const dx = p.x - this.lastX;
       const dy = p.y - this.lastY;
-      if (Math.abs(dx) + Math.abs(dy) > 3) this.moved = true;
+      // Total travel since the press, not the size of one step — a slow drag
+      // is still a drag, and must not end up opening a card on release.
+      this.travel += Math.abs(dx) + Math.abs(dy);
+      if (!this.moved && this.travel > 3) {
+        this.moved = true;
+        if (!isTouch && this.onDragStart) this.onDragStart(); // desktop: drop the field for the drag
+      }
       this.posX += dx; this.posY += dy;
       this.accX += dx; this.accY += dy;
       this.velX = dx; this.velY = dy; // last movement = starting momentum
