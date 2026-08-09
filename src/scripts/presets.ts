@@ -78,9 +78,12 @@ const BASELINE = {
   // centre to the edge within one navbar-sized band, uniform on all four sides
   // (background.css derives the band from the nav metrics). `band` scales that
   // width (1 = one navbar height), `blur` is the backdrop blur, and the
-  // vignette's `edgeAlpha` is how dark the outermost edge gets.
+  // vignette's `edgeAlpha` is how dark the outermost edge gets. `bandTop`
+  // multiplies the top band only (1 = same as the sides), for a longer, deeper
+  // vignette fade behind the navbar.
   edges: {
     band: 1,
+    bandTop: 1,
     blur: 10,
     vignette: { edgeAlpha: 0.98 },
   },
@@ -103,6 +106,7 @@ const TEST01 = {
   nav: { scale: 2, scaleMobile: 1.35 },
   edges: {
     band: 1,
+    bandTop: 2,  // top vignette twice as tall, for a deep fade behind the 2× navbar
     blur: 40,  // maxed out — soft, deep frame
     vignette: { edgeAlpha: 1 },
   },
@@ -130,6 +134,9 @@ function stored() {
 }
 
 function resolveName() {
+  // Guard for non-browser contexts (Astro build / SSR): this module is imported
+  // in frontmatter too, where window doesn't exist — fall back to the default.
+  if (typeof window === 'undefined') return DEFAULT_PRESET;
   const fromUrl = new URLSearchParams(window.location.search).get('preset');
   const name = fromUrl || stored() || DEFAULT_PRESET;
   return PRESETS[name] ? name : DEFAULT_PRESET;
@@ -164,6 +171,7 @@ export function applyPresetStyles(preset = PRESET, name = PRESET_NAME) {
   // (background.css) derives its width from the nav metrics, and this scale tunes
   // it. Only the blur amount and the vignette's edge darkness remain per-effect.
   set('--edge-band-scale', String(edges.band));
+  set('--edge-band-top-scale', String(edges.bandTop ?? 1));
   set('--edge-blur', `${edges.blur}px`);
   set('--vig-a-edge', String(vg.edgeAlpha));
 }

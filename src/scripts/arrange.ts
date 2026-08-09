@@ -35,6 +35,7 @@ function makeRng(seed: number): () => number {
 export interface Placed extends Work {
   _origin: string; // slug of the source work — same for a filler and its original
   _isVideo: boolean;
+  _filler: boolean; // true for a padded copy (not the catalogue original)
 }
 
 // Repeat existing images (round-robin, so we spread across the catalogue rather
@@ -44,6 +45,7 @@ export function padToGrid(works: Work[], cells: number): Placed[] {
     ...w,
     _origin: w.slug,
     _isVideo: w.media.type === 'video',
+    _filler: false,
   }));
 
   const images = placed.filter((w) => !w._isVideo);
@@ -51,7 +53,9 @@ export function padToGrid(works: Work[], cells: number): Placed[] {
   let i = 0;
   while (placed.length < cells) {
     const src = pool[i % pool.length];
-    placed.push({ ...src }); // shares _origin with its source → shuffle separates them
+    // Shares _origin with its source (→ shuffle separates them) but is flagged a
+    // filler so the arranger can also keep it out of the opening view.
+    placed.push({ ...src, _filler: true });
     i++;
   }
   return placed;
@@ -74,8 +78,25 @@ function clashCost(a: Placed, b: Placed): number {
   return cost;
 }
 
-function totalCost(items: Placed[], cols: number, rows: number): number {
+// The opening viewport shows the tile's top-left corner (the map starts at
+// posX/posY = -tileW/-tileH, so on-screen origin = grid cell 0,0). A padded copy
+// landing in that block means the very first thing you see is a duplicate of a
+// photo shown elsewhere — so fillers get a stiff penalty for sitting there. The
+// block is clamped so it can never demand more cells than the grid has.
+function openingCost(items: Placed[], cols: number, rows: number, openCols: number, openRows: number): number {
+  const oc = Math.min(openCols, cols);
+  const or = Math.min(openRows, rows);
   let cost = 0;
+  for (let row = 0; row < or; row++) {
+    for (let col = 0; col < oc; col++) {
+      if (items[row * cols + col]._filler) cost += 20;
+    }
+  }
+  return cost;
+}
+
+function totalCost(items: Placed[], cols: number, rows: number, openCols: number, openRows: number): number {
+  let cost = openingCost(items, cols, rows, openCols, openRows);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const a = items[row * cols + col];
@@ -89,8 +110,11 @@ function totalCost(items: Placed[], cols: number, rows: number): number {
   return cost;
 }
 
-// Shuffle, then greedily swap pairs to drive the clash cost down.
-export function arrange(input: Placed[], cols: number, rows: number, seed = 1): Placed[] {
+// Shuffle, then greedily swap pairs to drive the clash cost down. openCols/
+// openRows describe the opening-viewport block that fillers are kept out of.
+export function arrange(
+  input: Placed[], cols: number, rows: number, seed = 1, openCols = 0, openRows = 0,
+): Placed[] {
   const rng = makeRng(seed);
   const items = input.slice();
 
@@ -104,12 +128,12 @@ export function arrange(input: Placed[], cols: number, rows: number, seed = 1): 
     let best = 0;
     let bi = -1;
     let bj = -1;
-    const before = totalCost(items, cols, rows);
+    const before = totalCost(items, cols, rows, openCols, openRows);
     if (before === 0) break;
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         [items[i], items[j]] = [items[j], items[i]];
-        const gain = before - totalCost(items, cols, rows);
+        const gain = before - totalCost(items, cols, rows, openCols, openRows);
         if (gain > best) {
           best = gain;
           bi = i;
@@ -125,7 +149,11 @@ export function arrange(input: Placed[], cols: number, rows: number, seed = 1): 
   return items;
 }
 
-// One call: pad the set to a full grid, then constrained-shuffle it.
-export function layout(works: Work[], cols: number, rows: number, cells: number, seed = 1): Work[] {
-  return arrange(padToGrid(works, cells), cols, rows, seed);
+// One call: pad the set to a full grid, then constrained-shuffle it. openCols/
+// openRows (how many cells the opening viewport spans) keep fillers off the
+// first screen.
+export function layout(
+  works: Work[], cols: number, rows: number, cells: number, seed = 1, openCols = 0, openRows = 0,
+): Work[] {
+  return arrange(padToGrid(works, cells), cols, rows, seed, openCols, openRows);
 }

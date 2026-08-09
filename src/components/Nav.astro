@@ -1,0 +1,42 @@
+---
+// Shared top navigation: logo + the category tabs + Kontakt. Identical markup on
+// every page so the navbar never shifts between the map and the kontakt page.
+//
+// The category items are real links to /?f=<filter>. On the map page main.ts
+// intercepts their clicks and filters in place (no navigation); on any other
+// page they simply navigate back to the map with that filter applied. Kontakt is
+// a plain page link. `active` marks the current item.
+//
+// active: one of 'all' | 'foto' | 'd3' | 'kontakt' | undefined.
+import { PRESETS, DEFAULT_PRESET } from '../scripts/presets';
+
+interface Props {
+  active?: 'all' | 'foto' | 'd3' | 'kontakt';
+}
+const { active } = Astro.props;
+const cls = (key: string) => `tab${active === key ? ' active' : ''}`;
+
+// The navbar scale comes from the active preset. On the map page main.ts writes
+// it onto :root at runtime (and honours ?preset=); pages without that script
+// (e.g. kontakt) would otherwise fall back to 1 and render a smaller navbar. So
+// bake the default preset's nav scale in here as a baseline — the runtime inline
+// style still wins on the map page, keeping live preset-switching intact.
+const nav = (PRESETS[DEFAULT_PRESET] as any).nav;
+---
+
+<style is:inline set:html={`:root{--nav-scale-desktop:${nav.scale};--nav-scale-mobile:${nav.scaleMobile};}`}></style>
+
+
+<div class="fixed-ui header-row">
+  <a class="brand" href="/" aria-label="felice design">
+    <img src="/assets/logo.svg" alt="felice design" />
+  </a>
+  <nav class="tabs" id="tabs">
+    {/* data-label repeats the text so a tab can reserve its bold width and the
+        row doesn't shift when the active tab changes (see header.css). */}
+    <a class={cls('all')} data-f="all" data-label="Alles" href="/">Alles</a>
+    <a class={cls('foto')} data-f="foto" data-label="Photographie" href="/?f=foto">Photographie</a>
+    <a class={cls('d3')} data-f="d3" data-label="3D-Viz" href="/?f=d3">3D-Viz</a>
+    <a class={cls('kontakt')} data-label="Kontakt" href="/kontakt">Kontakt</a>
+  </nav>
+</div>

@@ -58,14 +58,26 @@ detail.onOpen = () => field.clear();
 detail.onClose = () => field.clear();
 map.onCardOpen = (card, work) => detail.open(card, work);
 
+const tabsEl = document.getElementById('tabs')!;
 initTabs({
-  tabsEl: document.getElementById('tabs'),
+  tabsEl,
   worksByFilter,
   onFilterChange: (works: Work[]) => {
     field.clear();
     map.setWorks(works);
   },
 });
+
+// Landing with ?f=<filter> (e.g. a category tab clicked from the kontakt page)
+// opens straight into that filter and marks its tab active. `all` is the default,
+// so it needs no work.
+const initialFilter = new URLSearchParams(location.search).get('f');
+if (initialFilter && initialFilter !== 'all' && worksByFilter[initialFilter]) {
+  tabsEl.querySelectorAll('.tab[data-f]').forEach((t) =>
+    t.classList.toggle('active', (t as HTMLElement).dataset.f === initialFilter));
+  field.clear();
+  map.setWorks(worksByFilter[initialFilter]);
+}
 
 // The temporary slider editor loads only when ?editor is in the URL, so it's
 // never in the public bundle path for normal visitors.

@@ -1,0 +1,226 @@
+---
+// Kontakt / About page. Mirrors the about page from the FeliceDesignPortfolio
+// repo — transparent portrait bottom-left, bio text on the right with an EN/DE
+// toggle — but restyled onto this site's dark waves background with white text.
+// The top bar reuses the map's navbar look (logo + a .tab-styled link).
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+---
+
+<Base
+  title="Kontakt — felice design"
+  description="Felix J. Weber — ausgebildeter Produkt- und Werbefotograf, 3D-Artist und Mediendesign-Student. Kontakt und Kurzporträt."
+>
+  {/* Dark waves backdrop, same layer the map uses (see background.css). */}
+  <div id="waves"></div>
+
+  <Nav active="kontakt" />
+
+  <main class="kontakt">
+    <div class="kontakt-photo">
+      <img src="/assets/felix-portrait.png" alt="Felix Weber" />
+    </div>
+
+    <div class="kontakt-text">
+      <div class="kontakt-head">
+        <h1>Felix J. Weber</h1>
+        <button class="lang-toggle" id="langToggle" type="button">DE</button>
+      </div>
+
+      <p class="kontakt-lang" lang="en">
+        Trained product and advertising photographer,<br />
+        graduated top of my class as Kammersieger by the Chamber of Crafts Stuttgart.<br
+        />
+        Everything I learned in photography I now apply in 3D.<br />
+        Lighting, composition, set design, colorgrading, editing.<br />
+        Currently studying Media Design, picking up UI and development on the side,
+        learning whatever&rsquo;s next.<br />
+        <b>Ambitious, curious, self-taught where needed.</b>
+      </p>
+      <p class="kontakt-lang" lang="de" hidden>
+        Ausgebildeter Produkt- und Werbefotograf,<br />
+        Kammersieger der Handwerkskammer Stuttgart.<br />
+        Alles, was ich in der Fotografie gelernt habe, wende ich jetzt in 3D an.<br
+        />
+        Licht, Komposition, Set-Design, Colorgrading, Editing.<br />
+        Aktuell studiere ich Mediendesign und eigne mir nebenbei<br />UI und
+        Entwicklung an, immer bereit f&uuml;r das N&auml;chste.<br />
+        <b>Ehrgeizig, neugierig, autodidaktisch.</b>
+      </p>
+
+      <a class="kontakt-mail" href="mailto:felixjweber@gmail.com">
+        felixjweber@gmail.com
+      </a>
+    </div>
+  </main>
+</Base>
+
+<script>
+  // EN/DE toggle: the button shows the language you can switch TO. Same behaviour
+  // as the portfolio repo's about page.
+  const toggle = document.getElementById("langToggle");
+  toggle?.addEventListener("click", () => {
+    const toDE = toggle.textContent?.trim() === "DE";
+    document.querySelectorAll<HTMLElement>(".kontakt-lang").forEach((el) => {
+      el.hidden = el.getAttribute("lang") === (toDE ? "en" : "de");
+    });
+    toggle.textContent = toDE ? "EN" : "DE";
+  });
+</script>
+
+<style is:global>
+  /* This page scrolls (the map page locks overflow globally in base.css). */
+  html,
+  body {
+    overflow: auto;
+    cursor: default;
+  }
+
+  /* The waves backdrop on its own dark page: same faint white-on-black bands as
+     the map, fixed behind the content. */
+  #waves {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: url("/assets/wave-pattern.png");
+    background-repeat: repeat;
+    background-size: 300px 300px;
+    mix-blend-mode: screen;
+    opacity: 0.04;
+  }
+
+  .kontakt {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4vw;
+    padding: 0 8vw 0 0;
+    color: var(--ink);
+  }
+
+  .kontakt-photo {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .kontakt-photo img {
+    display: block;
+    height: 84vh;
+    width: auto;
+    object-fit: contain;
+    object-position: bottom left;
+    /* Feather the transparent PNG into the dark background a touch. */
+    filter: drop-shadow(0 20px 60px rgba(0, 0, 0, 0.55));
+  }
+
+  .kontakt-text {
+    position: relative;
+    z-index: 2;
+    width: min(46vw, 640px);
+    align-self: center;
+  }
+
+  .kontakt-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1.2rem;
+  }
+  .kontakt-text h1 {
+    font-family: "Fraunces", serif;
+    font-size: clamp(2rem, 4.4vw, 3.6rem);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+  }
+
+  .kontakt-text p {
+    margin-top: 4vh;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: clamp(1rem, 1.3vw, 1.2rem);
+    line-height: 1.7;
+    color: var(--ink);
+  }
+  .kontakt-text p b {
+    color: var(--amber);
+    font-weight: 600;
+  }
+
+  .kontakt-mail {
+    display: inline-block;
+    margin-top: 4vh;
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    color: var(--ink-dim);
+    border-bottom: 1px solid var(--ink-faint);
+    padding-bottom: 3px;
+    transition:
+      color 0.3s,
+      border-color 0.3s;
+  }
+  .kontakt-mail:hover {
+    color: var(--ink);
+    border-color: var(--amber);
+  }
+
+  /* Language toggle, restyled to match the nav tabs (uppercase, spaced, the
+     dim/active opacity ramp) rather than the bordered pill in the source. */
+  .lang-toggle {
+    background: none;
+    border: none;
+    color: var(--ink);
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0.45;
+    padding: 4px 0;
+    transition: opacity 0.3s var(--ease);
+  }
+  .lang-toggle:hover {
+    opacity: 1;
+  }
+
+  /* Nav links on this page reuse .tab from header.css; a real <a> keeps the
+     link semantics an <a class="tab"> needs. */
+  a.tab {
+    text-decoration: none;
+  }
+
+  @media (max-width: 860px) {
+    .kontakt {
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: stretch;
+      padding: clamp(90px, 18vh, 160px) 6vw 6vh;
+      gap: 2vh;
+    }
+    .kontakt-photo {
+      position: relative;
+      order: 2;
+      text-align: center;
+    }
+    .kontakt-photo img {
+      height: auto;
+      max-height: 46vh;
+      max-width: 88vw;
+      margin: 0 auto;
+      object-position: center bottom;
+    }
+    .kontakt-text {
+      width: 100%;
+      order: 1;
+      align-self: stretch;
+    }
+    .kontakt-text p br {
+      display: none;
+    }
+  }
+</style>

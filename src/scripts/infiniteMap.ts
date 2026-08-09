@@ -106,8 +106,33 @@ export class InfiniteMap {
     // the infinite wrap), then constrained-shuffle. `this.works` becomes the
     // laid-out, padded list so a card's dataset.idx maps straight to it.
     const { cols, rows, cells } = gridSize(works.length);
-    const placed = layout(works, cols, rows, cells, works.length * 131 + 7);
+    // How many cells are fully visible in the opening viewport from the top-left
+    // corner (the map starts there). Fillers are kept out of this block so the
+    // first screen never shows a photo and its padded duplicate together. Capped
+    // at cols-1/rows-1 so the block can never swallow the whole grid — if it did,
+    // there'd be nowhere left to banish the filler to and the penalty would be a
+    // no-op (which is exactly what let the duplicate through before).
+    const openCols = Math.min(cols - 1, Math.floor(window.innerWidth / (CARD_W + GAP)));
+    const openRows = Math.min(rows - 1, Math.floor(window.innerHeight / (CARD_H + GAP)));
+    const placed = layout(works, cols, rows, cells, works.length * 131 + 7, openCols, openRows);
     this.works = placed;
+
+    // TEMP debug (only with ?editor): report the grid shape and where every
+    // repeated image landed vs. the opening block, to diagnose duplicates.
+    if (new URLSearchParams(location.search).has('editor')) {
+      const seen = new Map<string, number[]>();
+      placed.forEach((w, i) => {
+        const arr = seen.get(w.slug) || [];
+        arr.push(i);
+        seen.set(w.slug, arr);
+      });
+      const dupes = [...seen.entries()].filter(([, ix]) => ix.length > 1);
+      console.log(`[map] ${cols}x${rows}=${cells}, opening block ${openCols}x${openRows}`);
+      for (const [slug, ix] of dupes) {
+        console.log(`[map] duplicate "${slug}" at cells`,
+          ix.map((i) => `(${i % cols},${Math.floor(i / cols)})`).join(' '));
+      }
+    }
 
     this.cellW = CARD_W + GAP;
     this.cellH = CARD_H + GAP;

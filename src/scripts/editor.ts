@@ -85,6 +85,7 @@ const GROUPS: Group[] = [
     title: 'Edge frame',
     fields: [
       css('--edge-band-scale', 'Frame band', 0.2, 4, 0.05, '', 'edges.band'),
+      css('--edge-band-top-scale', 'Top band (×)', 1, 5, 0.05, '', 'edges.bandTop'),
       css('--edge-blur', 'Blur', 0, 40, 1, 'px', 'edges.blur'),
       css('--vig-a-edge', 'Vignette darkness', 0, 1, 0.01, '', 'edges.vignette.edgeAlpha'),
     ],
