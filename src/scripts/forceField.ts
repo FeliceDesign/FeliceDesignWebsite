@@ -17,25 +17,21 @@
 //
 // A light relaxation pass then nudges tiles apart so that, however much any
 // of them have grown, none ever overlap or touch.
-import {
-  CARD_W, CARD_H, CELL_W, CELL_H, BASE_AR, TILE_RADIUS, FIELD_RADIUS, FIELD_SCALE, FIELD_SMOOTH,
-  FOCUS_MORPH_START, FOCUS_LATCH, FOCUS_LATCH_SPEED, FOCUS_LATCH_MARGIN,
-  FOCUS_AREA, FOCUS_GROW, FOCUS_MAX_W, FOCUS_MAX_H, FOCUS_LIFT,
-  MIN_GAP, APPROACH_GAP, FOCUS_GAP, isTouch,
-} from './constants';
+import { CARD_W, CARD_H, CELL_W, CELL_H, BASE_AR, TILE_RADIUS, FIELD, isTouch } from './constants';
 import { aspectOf } from './aspect';
 
-// How fast a card's smoothed influence chases its target each frame (lower =
-// smoother but laggier). Touch is smoothed harder since the map's settling
-// glide is the jittery input there.
-const SMOOTH = FIELD_SMOOTH;
-
-// How far out tiles are considered each frame — the influence radius, half
-// the biggest a card can grow, plus a few rings for its push to cascade to
-// zero. With the wide gaps here the per-gap slack is large, so that cascade
-// is barely a ring; keeping this tight is what keeps the node count (and the
-// per-frame work) small.
-const GATHER = FIELD_RADIUS + Math.max(CARD_W * FOCUS_MAX_W, CARD_H * FOCUS_MAX_H) / 2 + 2 * Math.max(CELL_W, CELL_H);
+// How far out tiles are considered each frame — the influence radius, half the
+// biggest a card can grow, plus a few rings for its push to cascade to zero.
+// With the wide gaps here the per-gap slack is large, so that cascade is barely
+// a ring; keeping this tight is what keeps the node count (and the per-frame
+// work) small. Recomputed each pass so live edits to the field/grid apply at
+// once. (CARD_W etc. are live bindings; FIELD is a live object — see
+// constants.ts.)
+function gather() {
+  return FIELD.radius
+    + Math.max(CARD_W * FIELD.maxW, CARD_H * FIELD.maxH) / 2
+    + 2 * Math.max(CELL_W, CELL_H);
+}
 
 export class ForceField {
   constructor({ cards, map, isDragging }) {
@@ -74,16 +70,16 @@ export class ForceField {
   // the larger of a target-area box (so every aspect ends a similar size) and
   // a contain-the-base box (a floor for very tall/wide images), then clamped.
   _fullBox(aspect) {
-    const area = CARD_W * CARD_H * FOCUS_AREA;
+    const area = CARD_W * CARD_H * FIELD.area;
     const aw = Math.sqrt(area * aspect);
     const ah = Math.sqrt(area / aspect);
     let cw; let ch;
     if (aspect >= BASE_AR) { ch = CARD_H; cw = CARD_H * aspect; }
     else { cw = CARD_W; ch = CARD_W / aspect; }
-    let w = Math.max(aw, cw * FOCUS_GROW);
-    let h = Math.max(ah, ch * FOCUS_GROW);
-    const maxW = Math.min(CARD_W * FOCUS_MAX_W, window.innerWidth * (isTouch ? 0.86 : 0.66));
-    const maxH = Math.min(CARD_H * FOCUS_MAX_H, window.innerHeight * (isTouch ? 0.62 : 0.84));
+    let w = Math.max(aw, cw * FIELD.grow);
+    let h = Math.max(ah, ch * FIELD.grow);
+    const maxW = Math.min(CARD_W * FIELD.maxW, window.innerWidth * (isTouch ? 0.86 : 0.66));
+    const maxH = Math.min(CARD_H * FIELD.maxH, window.innerHeight * (isTouch ? 0.62 : 0.84));
     const fit = Math.min(1, maxW / w, maxH / h);
     return { w: w * fit, h: h * fit };
   }
@@ -133,6 +129,7 @@ export class ForceField {
     let primary = null;
     let primaryInfl = 0;
     let easing = false;
+    const GATHER = gather();
 
     for (const card of this.cards) {
       if (card.style.visibility === 'hidden') continue;
@@ -141,10 +138,10 @@ export class ForceField {
       const dist = Math.hypot(this.mX - cx, this.mY - cy);
       if (dist > GATHER) continue;
 
-      const t = Math.max(0, 1 - dist / FIELD_RADIUS);
+      const t = Math.max(0, 1 - dist / FIELD.radius);
       const raw = t * t;
       const prev = card._si || 0;
-      const infl = prev + (raw - prev) * SMOOTH;
+      const infl = prev + (raw - prev) * FIELD.smooth;
       card._si = infl;
       if (Math.abs(raw - infl) > 0.002) easing = true;
 
@@ -175,10 +172,10 @@ export class ForceField {
     // keeps it until the pointer leaves that card — so once you're on an
     // image its aspect ratio stops changing. Each card eases its own progress,
     // so moving from one card to the next crossfades instead of snapping.
-    if (FOCUS_LATCH) {
+    if (FIELD.latch) {
       const held = this._latch;
       const keep = held && held.isConnected && held.style.visibility !== 'hidden'
-        && this._onCard(held, wl, wt, FOCUS_LATCH_MARGIN);
+        && this._onCard(held, wl, wt, FIELD.latchMargin);
       if (!keep) {
         this._latch = null;
         for (const n of nodes) { // sorted, so this is the nearest one
@@ -188,7 +185,7 @@ export class ForceField {
       for (const n of nodes) {
         const target = n.card === this._latch ? 1 : 0;
         const from = n.card._mp || 0;
-        const next = from + (target - from) * FOCUS_LATCH_SPEED;
+        const next = from + (target - from) * FIELD.latchSpeed;
         n.card._mp = Math.abs(target - next) < 0.002 ? target : next;
         if (n.card._mp !== target) easing = true;
       }
@@ -199,9 +196,9 @@ export class ForceField {
     //    toward its full aspect box. The threshold is set so only one card can
     //    be morphing at a time.
     for (const n of nodes) {
-      const morph = FOCUS_LATCH ? (n.card._mp || 0) : this._morph(n.infl);
+      const morph = FIELD.latch ? (n.card._mp || 0) : this._morph(n.infl);
       if (n.infl <= 0.001 && morph <= 0.02) continue;
-      n.scale = 1 + FIELD_SCALE * n.infl;
+      n.scale = 1 + FIELD.scale * n.infl;
       n.w = CARD_W * n.scale;
       n.h = CARD_H * n.scale;
       if (morph > 0.02) {
@@ -214,7 +211,7 @@ export class ForceField {
       // Extra clearance this card asks its neighbours for: some of it fades
       // in with mere proximity (so they start making room early), the rest
       // belongs to the card being revealed.
-      n.gapBias = APPROACH_GAP * n.infl + FOCUS_GAP * n.morph;
+      n.gapBias = FIELD.approachGap * n.infl + FIELD.focusGap * n.morph;
     }
 
     // 3) Relax: push grid-neighbours apart until every pair keeps MIN_GAP.
@@ -236,7 +233,7 @@ export class ForceField {
     for (const n of nodes) {
       if (n.card === this._latch) latchNode = n;
       if (n.infl <= 0.002 && n.morph === 0 && n.dx === 0 && n.dy === 0) continue;
-      const lift = -FOCUS_LIFT * n.infl;
+      const lift = -FIELD.lift * n.infl;
       // translate3d, and will-change while it moves, put the card on its own
       // compositor layer: the offsets below are fractional, and an unpromoted
       // layer would round them to whole device pixels, which is what makes a
@@ -258,7 +255,7 @@ export class ForceField {
       n.card.style.borderRadius = `${(TILE_RADIUS * (1 - n.morph)).toFixed(1)}px`;
       const z = String(5 + Math.round(n.infl * 40));
       if (n.card.style.zIndex !== z) n.card.style.zIndex = z; // restacking is a repaint
-      n.card.classList.toggle('focused', FOCUS_LATCH
+      n.card.classList.toggle('focused', FIELD.latch
         ? n.card === this._latch
         : (n === primary && primaryInfl > 0.45));
       // Remember the box as drawn, so next frame can tell whether the pointer
@@ -277,7 +274,7 @@ export class ForceField {
     const glow = latchNode || primary;
     if (glow && (glow === latchNode || primaryInfl > 0.05)) {
       const cx = wl + glow.x + CARD_W / 2 + glow.dx;
-      const cy = wt + glow.y + CARD_H / 2 + glow.dy - FOCUS_LIFT * glow.infl;
+      const cy = wt + glow.y + CARD_H / 2 + glow.dy - FIELD.lift * glow.infl;
       this.root.style.setProperty('--card-x', `${cx.toFixed(1)}px`);
       this.root.style.setProperty('--card-y', `${cy.toFixed(1)}px`);
       this.root.style.setProperty('--card-a', Math.max(glow.infl, glow.morph).toFixed(3));
@@ -293,7 +290,7 @@ export class ForceField {
   // Smoothstep from FOCUS_MORPH_START..1 -> 0..1: no morph until the pointer
   // is fairly centred, easing in to a full reveal at the centre.
   _morph(infl) {
-    const t = Math.max(0, Math.min(1, (infl - FOCUS_MORPH_START) / (1 - FOCUS_MORPH_START)));
+    const t = Math.max(0, Math.min(1, (infl - FIELD.morphStart) / (1 - FIELD.morphStart)));
     return t * t * (3 - 2 * t);
   }
 
@@ -301,7 +298,7 @@ export class ForceField {
     if (!a || !b) return;
     // The pair's clearance is the base gap plus whatever extra the more
     // demanding of the two asks for (proximity + reveal).
-    const gap = MIN_GAP + Math.max(a.gapBias, b.gapBias);
+    const gap = FIELD.minGap + Math.max(a.gapBias, b.gapBias);
     const ox = (b.x + b.dx) - (a.x + a.dx);
     const oy = (b.y + b.dy) - (a.y + a.dy);
     const overlapX = (a.w + b.w) / 2 + gap - Math.abs(ox);

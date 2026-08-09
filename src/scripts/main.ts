@@ -70,5 +70,10 @@ initTabs({
 // The temporary slider editor loads only when ?editor is in the URL, so it's
 // never in the public bundle path for normal visitors.
 if (new URLSearchParams(location.search).has('editor')) {
-  import('./editor').then((m) => m.initEditor());
+  import('./editor').then((m) => m.initEditor({
+    // Geometry edits change DOM slot positions, so the editor calls this to
+    // rebuild the grid from the freshly recomputed constants. Field/glow/edge
+    // edits don't need it — the force field and CSS read those live.
+    relayout: () => { map.setWorks(map.works); field.clear(); },
+  }));
 }

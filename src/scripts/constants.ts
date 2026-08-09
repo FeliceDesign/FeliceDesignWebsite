@@ -1,92 +1,119 @@
 // Layout + behaviour tuning shared by the map and the hover force field.
 //
-// The numbers themselves live in js/presets.js — this module only picks the
-// desktop or touch variant out of the active preset and hands it to the rest
-// of the code under stable names.
+// The numbers themselves live in presets.ts — this module picks the desktop or
+// touch variant out of the active preset and hands it to the rest of the code
+// under stable names.
+//
+// Live tuning: the ?editor panel (editor.ts) can mutate the active preset's
+// layout/field values at runtime and call recompute() to refresh everything
+// here. The force field reads the FIELD_* / FOCUS_* / *_GAP values fresh every
+// frame, so those take effect instantly; the grid geometry (card size, gap,
+// radius) only changes DOM slot positions, so a geometry edit is followed by a
+// map rebuild (see editor.ts). Because the derived values below are exported as
+// `let`, importers see each recompute() through ES-module live bindings without
+// re-importing.
 import { PRESET } from './presets';
 
 // Touch devices get smaller cards (more fit on screen) and a field that's
 // centered on the screen instead of following a cursor.
 export const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
 
-const L = PRESET.layout;
-const F = PRESET.field;
-
-// One global grid zoom applied to card size, gap and radius together, so the
-// whole raster scales without changing its proportions. Defaults to 1.
-const SCALE = L.gridScale ?? 1;
-
+// --- Live-tunable, recomputed geometry -------------------------------------
 // Rest cards are square, so a landscape image and a portrait image grow to a
 // similar size when focused (each just extends along its longer axis).
-export const CARD_W = (isTouch ? L.cardTouch : L.card) * SCALE;
-export const CARD_H = CARD_W;
-export const GAP = (isTouch ? L.gapTouch : L.gap) * SCALE;
-
-// Rounded corners at rest; the field eases these to 0 (sharp) as a card
-// morphs to its full-aspect reveal (js/forceField.js).
-export const TILE_RADIUS = (isTouch ? L.radiusTouch : L.radius) * SCALE;
-
+export let CARD_W = 0;
+export let CARD_H = 0;
+export let GAP = 0;
+// Rounded corners at rest; the field eases these to 0 (sharp) as a card morphs
+// to its full-aspect reveal (forceField.ts).
+export let TILE_RADIUS = 0;
 // Grid pitch: the distance from one card slot to the next.
-export const CELL_W = CARD_W + GAP;
-export const CELL_H = CARD_H + GAP;
-
-// One "tile" is a COLS x ROWS grid of cards, one per work — see grid.js.
-// COLS * ROWS always equals however many works are currently shown, so
-// each category tab gets its own tile shape instead of a fixed one.
-
-// Tiles are cloned REPEAT x REPEAT so there's always a buffer of cards
-// around the visible area, without creating infinite DOM nodes.
-export const REPEAT = 3;
-
-// How strongly the background pattern parallaxes against the drag (0 =
-// static, 1 = moves exactly with the cards).
-export const PARALLAX = L.parallax;
-
+export let CELL_W = 0;
+export let CELL_H = 0;
+// How strongly the background pattern parallaxes against the drag (0 = static,
+// 1 = moves exactly with the cards).
+export let PARALLAX = 0;
 // The base card box aspect ratio (square).
-export const BASE_AR = CARD_W / CARD_H;
+export let BASE_AR = 1;
 
-// How far the cursor's influence reaches, as a multiple of the grid pitch.
-// Cards within this radius react to the cursor every frame (nearest = most),
-// which is what gives the field its continuous, gradual feel.
-export const FIELD_RADIUS = Math.max(CELL_W, CELL_H) * F.radiusCells;
+// --- Live-tunable force-field values ----------------------------------------
+// The force field reads FIELD.* fresh every frame, so mutating this object
+// takes effect on the next pass with no rebuild. recompute() refills it from
+// the active preset.
+export const FIELD = {
+  // How far the cursor's influence reaches, in px (derived from radiusCells ×
+  // the grid pitch). Cards within this radius react to the cursor every frame.
+  radius: 0,
+  // How much a card gently puffs up at full influence.
+  scale: 0,
+  // How fast a card's smoothed influence chases its target each frame.
+  smooth: 0,
+  // The aspect-morph only ramps in once a card is this centred under the pointer.
+  morphStart: 0,
+  // With the latch on, the reveal is driven by "is the pointer on this card?"
+  // instead of by the influence, and holds until the pointer leaves.
+  latch: false,
+  latchSpeed: 0,
+  latchMargin: 0,
+  // A focused card grows to roughly this multiple of the base card's *area*, at
+  // its image's own aspect ratio. grow is a floor for very tall/wide images;
+  // maxW/maxH clamp the box (× card size).
+  area: 0,
+  grow: 0,
+  maxW: 0,
+  maxH: 0,
+  // px the focused card floats up.
+  lift: 0,
+  // Clearance between tiles: minGap always applies, approachGap fades in with
+  // proximity, focusGap is the extra room around the revealed card.
+  minGap: 0,
+  approachGap: 0,
+  focusGap: 0,
+};
 
-// How much a card gently puffs up at full influence. Every reachable card
-// scales a little by proximity (that's the "field"); on top of that, only the
-// single nearest card morphs to its full aspect ratio.
-export const FIELD_SCALE = F.scale;
-export const FIELD_SMOOTH = isTouch ? F.smoothTouch : F.smooth;
+// Pull the desktop/touch variant of every tunable value out of the active
+// preset. Called once at import, then again by the editor after it mutates the
+// preset in place.
+export function recompute() {
+  const L = PRESET.layout;
+  const F = PRESET.field;
 
-// The aspect-morph only ramps in once a card is this centred under the
-// pointer. With the influence radius below, no two cards' influence can both
-// reach this at once (even allowing for the smoothing lag), so only ever one
-// card morphs — and the hand-off between tiles happens where both are still
-// un-morphed, so there's no jump.
-export const FOCUS_MORPH_START = F.morphStart;
+  // One global grid zoom applied to card size, gap and radius together, so the
+  // whole raster scales without changing its proportions. Defaults to 1.
+  const SCALE = L.gridScale ?? 1;
 
-// With the latch on, the reveal is driven by "is the pointer on this card?"
-// instead of by the influence, and holds at full until the pointer leaves.
-// Touch has no pointer to be on a card, so it keeps the influence-driven
-// reveal either way.
-export const FOCUS_LATCH = F.latch && !isTouch;
-export const FOCUS_LATCH_SPEED = F.latchSpeed;
-export const FOCUS_LATCH_MARGIN = F.latchMargin;
+  CARD_W = (isTouch ? L.cardTouch : L.card) * SCALE;
+  CARD_H = CARD_W;
+  GAP = (isTouch ? L.gapTouch : L.gap) * SCALE;
+  TILE_RADIUS = (isTouch ? L.radiusTouch : L.radius) * SCALE;
+  CELL_W = CARD_W + GAP;
+  CELL_H = CARD_H + GAP;
+  PARALLAX = L.parallax;
+  BASE_AR = CARD_W / CARD_H;
 
-// A focused card grows to roughly this multiple of the base card's *area*, at
-// its image's own aspect ratio — so every aspect ratio swells to a similar
-// overall size. FOCUS_GROW is a floor for very tall/wide images so they still
-// fully contain the base card. The max multiples keep the box a hair under 2×
-// the grid pitch, so two fully-grown cards two slots apart still can't reach
-// each other and keeping grid-adjacent tiles apart is enough.
-export const FOCUS_AREA = isTouch ? F.areaTouch : F.area;
-export const FOCUS_GROW = F.grow;
-export const FOCUS_MAX_W = F.maxW; // × CARD_W
-export const FOCUS_MAX_H = F.maxH; // × CARD_H
-export const FOCUS_LIFT = isTouch ? F.liftTouch : F.lift; // px the focused card floats up
+  FIELD.radius = Math.max(CELL_W, CELL_H) * F.radiusCells;
+  FIELD.scale = F.scale;
+  FIELD.smooth = isTouch ? F.smoothTouch : F.smooth;
+  FIELD.morphStart = F.morphStart;
+  FIELD.latch = F.latch && !isTouch;
+  FIELD.latchSpeed = F.latchSpeed;
+  FIELD.latchMargin = F.latchMargin;
+  FIELD.area = isTouch ? F.areaTouch : F.area;
+  FIELD.grow = F.grow;
+  FIELD.maxW = F.maxW;
+  FIELD.maxH = F.maxH;
+  FIELD.lift = isTouch ? F.liftTouch : F.lift;
+  FIELD.minGap = isTouch ? F.minGapTouch : F.minGap;
+  FIELD.approachGap = isTouch ? F.approachGapTouch : F.approachGap;
+  FIELD.focusGap = isTouch ? F.focusGapTouch : F.focusGap;
+}
 
-// Smallest gap that must always remain between any two tiles. Nothing ever
-// touches. APPROACH_GAP fades in with proximity so neighbours start making
-// room before anything is revealed; FOCUS_GAP is the extra clearance the
-// revealed card itself demands.
-export const MIN_GAP = isTouch ? F.minGapTouch : F.minGap;
-export const APPROACH_GAP = isTouch ? F.approachGapTouch : F.approachGap;
-export const FOCUS_GAP = isTouch ? F.focusGapTouch : F.focusGap;
+recompute();
+
+// One "tile" is a COLS x ROWS grid of cards, one per work — see grid.ts.
+// COLS * ROWS always equals however many works are currently shown, so each
+// category tab gets its own tile shape instead of a fixed one.
+//
+// Tiles are cloned REPEAT x REPEAT so there's always a buffer of cards around
+// the visible area, without creating infinite DOM nodes.
+export const REPEAT = 3;

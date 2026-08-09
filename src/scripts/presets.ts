@@ -74,16 +74,15 @@ const BASELINE = {
   // because the header row can't grow without pushing the tabs off screen.
   nav: { scale: 1, scaleMobile: 1 },
 
-  // Blur frame and vignette around the screen edges. Percentages are the
-  // gradient stops: smaller = the effect starts closer to the center.
+  // Smooth blur frame + vignette around the screen edges. Both fade from a clear
+  // centre to the edge within one navbar-sized band, uniform on all four sides
+  // (background.css derives the band from the nav metrics). `band` scales that
+  // width (1 = one navbar height), `blur` is the backdrop blur, and the
+  // vignette's `edgeAlpha` is how dark the outermost edge gets.
   edges: {
+    band: 1,
     blur: 10,
-    blurMask: { sizeX: 70, sizeY: 80, clear: 65, mid: 75, midAlpha: 0.4, solid: 84 },
-    vignette: {
-      sizeX: 80, sizeY: 78,
-      clear: 65, mid: 75, dark: 82,
-      midAlpha: 0.35, darkAlpha: 0.82, edgeAlpha: 0.98,
-    },
+    vignette: { edgeAlpha: 0.98 },
   },
 };
 
@@ -103,13 +102,9 @@ const TEST01 = {
   glow: { cursorRadius: 570 },  // 95px + 500%
   nav: { scale: 2, scaleMobile: 1.35 },
   edges: {
-    blur: 18,
-    blurMask: { sizeX: 80, sizeY: 78, clear: 30, mid: 52, midAlpha: 0.55, solid: 74 },
-    vignette: {
-      sizeX: 82, sizeY: 80,
-      clear: 26, mid: 50, dark: 74,
-      midAlpha: 0.5, darkAlpha: 0.9, edgeAlpha: 1,
-    },
+    band: 1,
+    blur: 40,  // maxed out — soft, deep frame
+    vignette: { edgeAlpha: 1 },
   },
 };
 
@@ -150,7 +145,6 @@ export function applyPresetStyles(preset = PRESET, name = PRESET_NAME) {
   const root = document.documentElement;
   const set = (k, v) => root.style.setProperty(k, v);
   const { glow, nav, edges } = preset;
-  const bm = edges.blurMask;
   const vg = edges.vignette;
 
   root.dataset.preset = name;
@@ -166,21 +160,11 @@ export function applyPresetStyles(preset = PRESET, name = PRESET_NAME) {
   set('--nav-scale-desktop', String(nav.scale));
   set('--nav-scale-mobile', String(nav.scaleMobile));
 
+  // The vignette and blur share one smooth, navbar-sized frame band; --edge-band
+  // (background.css) derives its width from the nav metrics, and this scale tunes
+  // it. Only the blur amount and the vignette's edge darkness remain per-effect.
+  set('--edge-band-scale', String(edges.band));
   set('--edge-blur', `${edges.blur}px`);
-  set('--bm-x', `${bm.sizeX}%`);
-  set('--bm-y', `${bm.sizeY}%`);
-  set('--bm-clear', `${bm.clear}%`);
-  set('--bm-mid', `${bm.mid}%`);
-  set('--bm-a', String(bm.midAlpha));
-  set('--bm-solid', `${bm.solid}%`);
-
-  set('--vig-x', `${vg.sizeX}%`);
-  set('--vig-y', `${vg.sizeY}%`);
-  set('--vig-clear', `${vg.clear}%`);
-  set('--vig-mid', `${vg.mid}%`);
-  set('--vig-dark', `${vg.dark}%`);
-  set('--vig-a-mid', String(vg.midAlpha));
-  set('--vig-a-dark', String(vg.darkAlpha));
   set('--vig-a-edge', String(vg.edgeAlpha));
 }
 
