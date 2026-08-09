@@ -1,0 +1,111 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getWorks } from '../../lib/works';
+
+// One statically-rendered detail page per work. These give every piece a real,
+// shareable URL with genuine crawlable content (works without JS), which is the
+// backbone of the SEO/GEO story and the internal linking.
+export async function getStaticPaths() {
+  const works = await getWorks();
+  return works.map((work) => ({ params: { slug: work.slug }, props: { work } }));
+}
+
+const { work } = Astro.props;
+const site = Astro.site?.href.replace(/\/$/, '') ?? '';
+const ogImage =
+  work.media.type === 'image' ? `${site}${work.media.src}` : work.media.poster;
+---
+
+<Base
+  title={`${work.title} — felice design`}
+  description={work.desc}
+  image={ogImage}
+>
+  <main class="detail-page">
+    <a class="back" href="/">← zur Übersicht</a>
+
+    <figure>
+      {work.media.type === 'image' ? (
+        <img src={work.media.src} alt={`${work.title} — ${work.type}`} />
+      ) : (
+        <video
+          src={work.media.playUrl}
+          poster={work.media.poster}
+          controls
+          loop
+          muted
+          playsinline
+        ></video>
+      )}
+    </figure>
+
+    <div class="meta">
+      <p class="eyebrow">{work.type}</p>
+      <h1>{work.title}</h1>
+      <p class="desc">{work.desc}</p>
+    </div>
+  </main>
+</Base>
+
+<style>
+  .detail-page {
+    position: relative;
+    min-height: 100vh;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 5vw, 4rem);
+    align-content: center;
+  }
+  @media (min-width: 800px) {
+    .detail-page {
+      grid-template-columns: 1.4fr 1fr;
+      align-items: center;
+    }
+  }
+  html, body { overflow: auto; height: auto; }
+  body { cursor: default; }
+  .back {
+    position: fixed;
+    top: clamp(1rem, 3vw, 2rem);
+    left: clamp(1rem, 3vw, 2rem);
+    color: var(--ink-dim);
+    text-decoration: none;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    z-index: 10;
+  }
+  .back:hover { color: var(--ink); }
+  figure { margin: 0; }
+  figure img, figure video {
+    width: 100%;
+    height: auto;
+    border-radius: 14px;
+    display: block;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  }
+  .eyebrow {
+    font-family: 'Space Grotesk', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.72rem;
+    color: var(--amber);
+    margin-bottom: 0.8rem;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    line-height: 1.05;
+    margin-bottom: 1.2rem;
+  }
+  .desc {
+    color: var(--ink-dim);
+    line-height: 1.65;
+    max-width: 42ch;
+  }
+</style>

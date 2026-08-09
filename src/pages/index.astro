@@ -1,0 +1,31 @@
+---
+import Base from '../layouts/Base.astro';
+import Map from '../components/Map.astro';
+import SeoContent from '../components/SeoContent.astro';
+import Editor from '../components/Editor.astro';
+import { getWorks } from '../lib/works';
+
+// Build-time: load + resolve every work in its plain order. The map does its own
+// padding + constrained shuffle client-side (so tab filters get the same
+// treatment), and the SEO list is cleaner unshuffled and undeduped anyway.
+const works = await getWorks();
+
+const site = Astro.site?.href.replace(/\/$/, '') ?? '';
+---
+
+<Base
+  title="felice design — Portfolio von Felix Weber"
+  description="Produkt- und Werbefotografie, 3D-Visualisierung und Animation von Felix Weber (felice design). Eine interaktive Karte ausgewählter Arbeiten."
+>
+  <Map />
+  <SeoContent works={works} site={site} />
+  <Editor />
+
+  {/* Inject the build-time works, then load the (Vite-bundled) map entry. */}
+  <script is:inline define:vars={{ works }}>
+    window.__WORKS__ = works;
+  </script>
+  <script>
+    import '../scripts/main';
+  </script>
+</Base>

@@ -1,0 +1,56 @@
+/* Flip-detail overlay shown when a card is opened. */
+#overlay {
+  position: fixed; inset: 0; z-index: 100; background: rgba(6,7,8,0);
+  backdrop-filter: blur(0); pointer-events: none;
+  transition: background .55s var(--ease), backdrop-filter .55s var(--ease);
+}
+#overlay.open { background: rgba(6,7,8,0.93); backdrop-filter: blur(22px); pointer-events: auto; }
+
+#flyer {
+  position: fixed; z-index: 101; overflow: hidden;
+  background-size: cover; background-position: center; pointer-events: none; display: none;
+  transition: top .6s var(--ease-io), left .6s var(--ease-io), width .6s var(--ease-io),
+    height .6s var(--ease-io), box-shadow .6s var(--ease-io);
+}
+#flyer video {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+
+.detail-text {
+  position: fixed; z-index: 102; pointer-events: none; opacity: 0; transform: translateY(16px);
+  transition: opacity .45s var(--ease) .3s, transform .55s var(--ease) .3s;
+}
+.detail-text.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.detail-text .eyebrow {
+  font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.2em;
+  text-transform: uppercase; font-size: 0.72rem; color: var(--amber);
+}
+.detail-text h2 {
+  font-family: 'Fraunces', serif; font-weight: 400; font-style: italic;
+  font-size: clamp(2rem,4vw,3.4rem); line-height: 1; margin: 0.6rem 0 1.3rem; letter-spacing: -0.02em;
+}
+.detail-text p {
+  color: var(--ink-dim); line-height: 1.65; max-width: 38ch; font-size: 0.98rem;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+#closeBtn {
+  position: fixed; top: clamp(24px,4vw,44px); right: clamp(26px,5vw,56px); z-index: 103;
+  background: none; border: 1px solid var(--ink-faint); color: var(--ink); width: 44px; height: 44px;
+  border-radius: 50%; cursor: pointer; font-size: 0.95rem; opacity: 0; pointer-events: none;
+  transition: opacity .4s var(--ease), border-color .3s, transform .4s var(--ease);
+}
+#closeBtn.show { opacity: 1; pointer-events: auto; }
+#closeBtn:hover { border-color: var(--amber); transform: rotate(90deg); }
+
+@media (max-width: 600px) {
+  #closeBtn {
+    top: auto; bottom: 28px; right: 50%; transform: translateX(50%);
+    width: 52px; height: 52px; font-size: 1.1rem;
+    background: rgba(10,11,13,0.7); backdrop-filter: blur(8px); z-index: 104;
+  }
+  #closeBtn.show { transform: translateX(50%); }
+  #closeBtn:active { border-color: var(--amber); }
+  .detail-text h2 { font-size: 1.9rem; margin: 0.4rem 0 0.9rem; }
+  .detail-text p { font-size: 0.95rem; }
+}

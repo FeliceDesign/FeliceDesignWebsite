@@ -137,4 +137,24 @@ export const WORKS = [
     desc: 'Beitrag für die Eternal-Ascent-3D-Render-Challenge – komplett in Eigenarbeit.',
     media: { type: 'video', src: 'https://res.cloudinary.com/dmorge9ab/video/upload/v1777917521/Felice_Eternal_Ascent_Final_asgv8z.mp4' },
   },
+  {
+    tag: 'd3', type: '3D · Bewegt', title: 'Failed Hunt',
+    desc: 'Uni-Projekt – Jumping-Spider-Animation.',
+    media: { type: 'video', src: 'https://res.cloudinary.com/dmorge9ab/video/upload/v1777917565/Felix_Weber_Jumping_Spider_SS2024_lkkoxv.mp4' },
+  },
+  {
+    tag: 'd3', type: '3D · Bewegt', title: 'Drift',
+    desc: 'Uni-Projekt – Szenenbau, Licht, Rendering & Animation von Felix, Fahrzeugmodell von Tobias-Pisarovic (CGTrader).',
+    media: { type: 'video', src: 'https://res.cloudinary.com/dmorge9ab/video/upload/v1777917618/Felix_Weber_Drift_SS2024_d5makt.mp4' },
+  },
+  {
+    tag: 'd3', type: '3D · Bewegt', title: 'Endless Engines',
+    desc: 'Beitrag für die Endless-Engines-3D-Render-Challenge – komplett in Eigenarbeit.',
+    media: { type: 'video', src: 'https://res.cloudinary.com/dmorge9ab/video/upload/v1779872801/Endless_Engines_Felice_gcldc8.mp4' },
+  },
+  {
+    tag: 'd3', type: '3D · Bewegt', title: 'Chasms Call',
+    desc: 'Beitrag für die Chasms-Call-3D-Render-Challenge – komplett in Eigenarbeit, Hai- und Korallenmodelle von Sketchfab.',
+    media: { type: 'video', src: 'https://res.cloudinary.com/dmorge9ab/video/upload/v1777917287/Chasms_Call-Blue-Hole-Felice_dvgdvn.mp4' },
+  },
 ];

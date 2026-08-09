@@ -1,0 +1,65 @@
+---
+// A visually-hidden but fully crawlable rendering of every work: real headings,
+// descriptions and media references, plus JSON-LD. The interactive map is all
+// JS-built <div>s that a crawler/LLM can't read, so this is the SEO/GEO
+// substance — and it links out to each work's own detail page.
+import type { RuntimeWork } from '../lib/works';
+
+interface Props {
+  works: RuntimeWork[];
+  site: string;
+}
+const { works, site } = Astro.props;
+
+const person = {
+  '@type': 'Person',
+  name: 'Felix Weber',
+  alternateName: 'felice design',
+  jobTitle: 'Produkt- und Werbefotograf, 3D-Artist',
+  url: site,
+};
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    person,
+    ...works.map((w) => ({
+      '@type': w.media.type === 'video' ? 'VideoObject' : 'ImageObject',
+      name: w.title,
+      description: w.desc,
+      genre: w.type,
+      creator: { '@type': 'Person', name: 'Felix Weber' },
+      url: `${site}/werk/${w.slug}`,
+      ...(w.media.type === 'video'
+        ? { contentUrl: w.media.playUrl, thumbnailUrl: w.media.poster }
+        : { contentUrl: `${site}${w.media.src}` }),
+    })),
+  ],
+};
+---
+
+<section class="sr-only" aria-label="Portfolio von felice design">
+  <h1>felice design — Portfolio von Felix Weber</h1>
+  <p>
+    Produkt- und Werbefotografie sowie 3D-Visualisierung und Animation von Felix
+    Weber (felice design). Kammersieger der Handwerkskammer Stuttgart.
+  </p>
+  <ul>
+    {works.map((w) => (
+      <li>
+        <article>
+          <h2><a href={`/werk/${w.slug}`}>{w.title}</a></h2>
+          <p class="eyebrow">{w.type}</p>
+          <p>{w.desc}</p>
+          {w.media.type === 'image' ? (
+            <img src={w.media.src} alt={`${w.title} — ${w.type}`} loading="lazy" width="600" />
+          ) : (
+            <video src={w.media.playUrl} poster={w.media.poster} muted preload="none"></video>
+          )}
+        </article>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

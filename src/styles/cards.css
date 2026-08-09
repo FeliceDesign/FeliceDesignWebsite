@@ -1,0 +1,72 @@
+/* The infinite map and the work cards placed on it. */
+#viewport { position: fixed; inset: 0; overflow: hidden; z-index: 1; }
+#world { position: absolute; top: 0; left: 0; will-change: transform; }
+
+.card {
+  position: absolute;
+  overflow: hidden;
+  background: var(--panel);
+  /* Size + offset are NOT transitioned: the field already drives them live
+     every frame from a time-smoothed influence, so they're smooth on their
+     own. A CSS transition here would only lag behind that and leave tiles
+     stuck mid-move. Only the cosmetic fades (shadow/brightness) transition. */
+  transition: box-shadow .25s var(--ease), opacity .5s var(--ease), filter .35s var(--ease);
+  /* No always-on will-change / backface-visibility: those would promote every
+     tile (hundreds) to its own GPU layer, and with rounded corners each such
+     layer needs a costly rounded-clip mask. The field promotes only the few
+     cards it's animating (js/forceField.js) and clears it when they settle. */
+  /* Rounded corners at rest are set inline from TILE_RADIUS. */
+}
+/* While actively dragging: snap back to the grid instead of easing, so
+   flinging the map never leaves a card mid-expansion. */
+body.dragging .card { transition: opacity .5s var(--ease), filter .5s var(--ease); }
+
+.card-img, .card-video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  /* `cover` fills the card box. In the grid the box is square so the image is
+     cropped; when a card is focused its box morphs to the image's own aspect
+     ratio, so `cover` ends up showing (almost) the whole, uncropped image. */
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+  object-fit: cover;
+  filter: brightness(0.72) saturate(0.8) contrast(1.03);
+  /* Always overfill by a hair so a subpixel rounding gap never bares a light
+     edge along the image while it scales. */
+  transform: scale(1.03);
+  transition: filter .5s var(--ease), transform .6s var(--ease);
+  pointer-events: none;
+}
+.card.focused .card-img, .card.focused .card-video {
+  filter: brightness(1.0) saturate(1.05);
+  transform: scale(1.012);
+}
+.card.focused {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+}
+
+.card::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(6,7,8,0.9), transparent 55%);
+  opacity: 0; transition: opacity .5s var(--ease); pointer-events: none;
+}
+.card.focused::after { opacity: 1; }
+
+.card-title {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 16px 18px;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity .45s var(--ease), transform .45s var(--ease);
+  pointer-events: none;
+}
+.card.focused .card-title { opacity: 1; transform: translateY(0); }
+.card-title .t {
+  font-family: 'Fraunces', serif; font-weight: 500; font-size: 1.2rem; line-height: 1.05;
+  letter-spacing: -0.01em; display: block;
+}
+.card-title .s {
+  font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase;
+  margin-top: 5px; display: block;
+}
+.card-title .s.foto { color: var(--amber); }
+.card-title .s.d3   { color: var(--cool); }
+.card-title .s.web  { color: #8fc9a8; }

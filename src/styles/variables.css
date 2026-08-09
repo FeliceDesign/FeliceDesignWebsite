@@ -1,0 +1,25 @@
+/* Design tokens shared by every other stylesheet. */
+:root {
+  --bg: #0c0d0f;
+  --panel: #17191d;
+  --ink: #f2f0ec;
+  --ink-dim: #7c848c;
+  --ink-faint: #454b52;
+  --amber: #e0a56a;
+  --cool: #8fb4cc;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* The active preset (js/presets.js) writes its styling values onto :root at
+     boot: the glow radii, --nav-scale-*, --edge-blur, --bm-* and --vig-*.
+     Every rule that reads them repeats the baseline number as its var()
+     fallback, so the stylesheets stand on their own without the JS. */
+
+  /* Updated every frame by js/forceField.js to steer the glow layers below. */
+  --glow-x: 50vw;
+  --glow-y: 50vh;
+  --card-x: 50vw;
+  --card-y: 50vh;
+  --glow-a: 0;
+  --card-a: 0;
+}

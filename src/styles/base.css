@@ -1,0 +1,32 @@
+/* Space Grotesk 700 carries the active nav tab — without it the browser would
+   fake the bold and the tab widths wouldn't match what header.css reserves. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; background: var(--bg); overflow: hidden; }
+
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--ink);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+body.dragging { cursor: grabbing; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01s !important; }
+}
+
+/* Crawlable-but-invisible: the SEO content layer is in the DOM for search
+   engines and LLMs, but off-screen for sighted users (the map is the UI). */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

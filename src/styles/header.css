@@ -1,0 +1,78 @@
+/* Fixed UI that sits above the vignette: logo, tabs, hint, contact link.
+   --nav-scale (1 = baseline) scales the logo and the tabs together. It's
+   derived from the two values the active preset writes onto :root, so phones
+   can stay more modest than the desktop without the row overflowing. */
+:root { --nav-scale: var(--nav-scale-desktop, 1); }
+@media (max-width: 600px) {
+  :root { --nav-scale: var(--nav-scale-mobile, 1); }
+}
+
+.fixed-ui { position: fixed; z-index: 60; }
+
+.header-row {
+  top: clamp(20px,3.5vw,40px); left: clamp(22px,5vw,56px); right: clamp(22px,5vw,56px);
+  display: flex; align-items: center;
+  gap: calc(clamp(16px,3vw,36px) * var(--nav-scale, 1));
+  pointer-events: auto;
+}
+.brand { display: flex; align-items: center; flex: none; line-height: 0; }
+.brand img {
+  height: calc(clamp(30px,4.4vw,42px) * var(--nav-scale, 1));
+  width: auto; display: block;
+}
+
+.tabs {
+  display: flex; gap: calc(clamp(14px,2.4vw,32px) * var(--nav-scale, 1)); align-items: center;
+  pointer-events: auto; flex-wrap: nowrap;
+}
+/* Uppercase, and the active tab is marked by weight alone — no underline. */
+.tab {
+  background: none; border: none; color: var(--ink); white-space: nowrap;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: calc(0.8rem * var(--nav-scale, 1));
+  text-transform: uppercase; letter-spacing: 0.14em; font-weight: 400;
+  cursor: pointer; padding: calc(4px * var(--nav-scale, 1)) 0; position: relative; opacity: 0.45;
+  transition: opacity .3s var(--ease), font-weight .3s var(--ease);
+}
+/* Bold text is wider than regular, so every tab reserves the width it would
+   have when active. Without this the row shuffles sideways on every switch.
+   The copy is zero-height and hidden, so it only ever contributes width. */
+.tab::after {
+  content: attr(data-label);
+  display: block; height: 0; overflow: hidden;
+  font-weight: 700; visibility: hidden; pointer-events: none;
+}
+.tab:hover { opacity: 0.8; }
+.tab.active { opacity: 1; font-weight: 700; }
+
+.hint {
+  bottom: clamp(24px,4vw,42px); left: 50%; transform: translateX(-50%);
+  font-size: 0.64rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint);
+  transition: opacity .6s var(--ease);
+}
+.hint.gone { opacity: 0; }
+
+.contact {
+  bottom: clamp(24px,4vw,42px); right: clamp(26px,5vw,56px);
+  font-size: 0.7rem; letter-spacing: 0.12em; color: var(--ink-dim);
+  border-bottom: 1px solid var(--ink-faint); padding-bottom: 2px; pointer-events: auto; cursor: pointer;
+  transition: color .3s, border-color .3s;
+}
+.contact:hover { color: var(--ink); border-color: var(--amber); }
+
+/* Mobile: logo + tabs stay in one row, just more compact. */
+@media (max-width: 600px) {
+  .header-row { top: 14px; left: 14px; right: 14px; gap: calc(12px * var(--nav-scale, 1)); }
+  .brand img { height: calc(26px * var(--nav-scale, 1)); }
+  .tabs { gap: calc(11px * var(--nav-scale, 1)); }
+  .tab { font-size: calc(0.66rem * var(--nav-scale, 1)); letter-spacing: 0.04em; }
+  .contact { bottom: 16px; right: 18px; }
+  .hint { bottom: 16px; font-size: 0.58rem; left: 18px; transform: none; text-align: left; }
+}
+/* Very narrow: let tabs shrink a little rather than overflow. */
+@media (max-width: 380px) {
+  .header-row { gap: calc(8px * var(--nav-scale, 1)); }
+  .brand img { height: calc(23px * var(--nav-scale, 1)); }
+  .tabs { gap: calc(9px * var(--nav-scale, 1)); }
+  .tab { font-size: calc(0.6rem * var(--nav-scale, 1)); }
+}

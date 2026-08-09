@@ -1,0 +1,39 @@
+---
+// The visual map scaffold — the same DOM the legacy index.html had. It's filled
+// with cards at runtime by src/scripts/main.ts; this only lays out the fixed
+// chrome (viewport/world, background layers, header, detail overlay).
+---
+
+<div id="viewport">
+  <div id="world"></div>
+</div>
+<div id="waves"></div>
+<div id="waves-glow"></div>
+
+<div id="blur-frame"></div>
+<div id="vignette"></div>
+<div id="grain"></div>
+
+<div class="fixed-ui header-row">
+  <a class="brand" href="/" aria-label="felice design">
+    <img src="/assets/logo.svg" alt="felice design" />
+  </a>
+  <nav class="tabs" id="tabs">
+    {/* data-label repeats the text so the tab can reserve its bold width and
+        the row doesn't shift when the active tab changes (see header.css). */}
+    <button class="tab active" data-f="all" data-label="Alles">Alles</button>
+    <button class="tab" data-f="foto" data-label="Photographie">Photographie</button>
+    <button class="tab" data-f="d3" data-label="3D-Viz">3D-Viz</button>
+  </nav>
+</div>
+<div class="fixed-ui hint" id="hint">Ziehen zum Erkunden</div>
+<a class="fixed-ui contact" href="mailto:felixjweber@gmail.com">Kontakt</a>
+
+<div id="overlay"></div>
+<div id="flyer"></div>
+<div class="detail-text" id="detailText">
+  <div class="eyebrow" id="dEyebrow"></div>
+  <h2 id="dTitle"></h2>
+  <p id="dDesc"></p>
+</div>
+<button id="closeBtn" aria-label="Schließen">✕</button>

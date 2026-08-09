@@ -1,0 +1,46 @@
+---
+// Shared document shell: head meta, the six stylesheets carried over from the
+// legacy site, fonts, OpenGraph, canonical. Pages fill the <slot/>.
+import '../styles/variables.css';
+import '../styles/base.css';
+import '../styles/background.css';
+import '../styles/header.css';
+import '../styles/cards.css';
+import '../styles/detail.css';
+
+interface Props {
+  title: string;
+  description: string;
+  image?: string; // absolute OG image URL
+}
+const { title, description, image } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const ogImage = image || new URL('/assets/photos/foto-01-abschlussserie-1.jpg', Astro.site).href;
+---
+
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    {/* Fonts (Fraunces, Space Grotesk) are @imported by styles/base.css. */}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
